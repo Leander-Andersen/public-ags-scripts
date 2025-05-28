@@ -2,7 +2,7 @@
 Write-Host "Setting up Brave as default browser..." -ForegroundColor Green
 
 # Define download URL and local path
-$setUserFTAUrl = "http://script.isame12.xyz/public-ags-scripts/SetUserFTA.exe"
+$setUserFTAUrl = "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetUserFTA.exe"
 $downloadFolder = "C:\SetdefaultBrowser\SetUserFTA"
 $setUserFTAPath = Join-Path $downloadFolder "SetUserFTA.exe"
 
@@ -56,7 +56,7 @@ Write-Host "Setting up scheduled task for browser maintenance..." -ForegroundCol
 $maintenanceScriptContent = @"
 # Brave Browser Maintenance Task - Always downloads latest from web server
 try {
-    `$webScript = Invoke-WebRequest -Uri "http://script.isame12.xyz/public-ags-scripts/SetBraveDefault.ps1" -UseBasicParsing
+    `$webScript = Invoke-WebRequest -Uri "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1" -UseBasicParsing
     if (`$webScript.StatusCode -eq 200) {
         # Execute the downloaded script content (but skip the scheduled task creation part)
         `$scriptContent = `$webScript.Content

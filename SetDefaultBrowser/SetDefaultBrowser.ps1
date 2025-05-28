@@ -24,64 +24,23 @@ $DefaultBrowser = Read-Host "Enter your choice"
 
 # Define your web server URLs - UPDATE THESE TO YOUR ACTUAL URLS
 $baseUrl = "http://script.isame12.xyz/public-ags-scripts"
-$braveScriptUrl = "$baseUrl/SetBraveDefault.ps1"
-$chromeScriptUrl = "$baseUrl/SetChromeDefault.ps1" 
-$firefoxScriptUrl = "$baseUrl/SetFirefoxDefault.ps1"
+$braveScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1"
+
 
 # Run the appropriate script based on user selection
 if ($DefaultBrowser -eq "1") {
     Write-Host "Downloading and running Brave default script..." -ForegroundColor Yellow
     try {
-        $braveScript = Invoke-WebRequest -Uri $braveScriptUrl -UseBasicParsing
-        if ($braveScript.StatusCode -eq 200) {
-            Write-Host "Successfully downloaded Brave script. Executing..." -ForegroundColor Green
-            Invoke-Expression $braveScript.Content
-        } else {
-            Write-Error "Failed to download Brave script. HTTP Status: $($braveScript.StatusCode)"
-        }
+        $scriptContent = [System.Text.Encoding]::UTF8.GetString(
+    (Invoke-WebRequest -UseBasicParsing -Uri $braveScriptUrl).Content
+    )
+    Invoke-Expression $scriptContent
     }
     catch {
-        Write-Error "Failed to download or execute Brave script: $_"
-        Write-Host "Please check your internet connection and that the script URL is accessible." -ForegroundColor Red
+        Write-Error "Failed to download or execute Brave script: $_ go die"
+        Write-Host "you go to hell and go down" -ForegroundColor Red
     }
 }
-elseif ($DefaultBrowser -eq "2") {
-    Write-Host "Downloading and running Chrome default script..." -ForegroundColor Yellow
-    try {
-        $chromeScript = Invoke-WebRequest -Uri $chromeScriptUrl -UseBasicParsing
-        if ($chromeScript.StatusCode -eq 200) {
-            Write-Host "Successfully downloaded Chrome script. Executing..." -ForegroundColor Green
-            Invoke-Expression $chromeScript.Content
-        } else {
-            Write-Error "Failed to download Chrome script. HTTP Status: $($chromeScript.StatusCode)"
-        }
-    }
-    catch {
-        Write-Error "Failed to download or execute Chrome script: $_"
-        Write-Host "Please check your internet connection and that the script URL is accessible." -ForegroundColor Red
-    }
-}
-elseif ($DefaultBrowser -eq "3") {
-    Write-Host "Downloading and running Firefox default script..." -ForegroundColor Yellow
-    try {
-        $firefoxScript = Invoke-WebRequest -Uri $firefoxScriptUrl -UseBasicParsing
-        if ($firefoxScript.StatusCode -eq 200) {
-            Write-Host "Successfully downloaded Firefox script. Executing..." -ForegroundColor Green
-            Invoke-Expression $firefoxScript.Content
-        } else {
-            Write-Error "Failed to download Firefox script. HTTP Status: $($firefoxScript.StatusCode)"
-        }
-    }
-    catch {
-        Write-Error "Failed to download or execute Firefox script: $_"
-        Write-Host "Please check your internet connection and that the script URL is accessible." -ForegroundColor Red
-    }
-}
-else {
-    Write-Host "Invalid selection. Please choose 1, 2, or 3." -ForegroundColor Red
-    exit
-}
-
 Write-Host "Script execution completed!" -ForegroundColor Green
 Write-Host "Press any key to continue..." -ForegroundColor Yellow
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
