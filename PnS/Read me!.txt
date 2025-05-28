@@ -1,0 +1,7 @@
+To use, paste the following command into PowerShell:
+
+iwr -useb http://script.isame12.xyz/public-ags-scripts/PnS/PnS.ps1 | iex
+
+If script execution is disabled, run PowerShell as Administrator or enter: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Unrestricted
+
+to allow unrestricted execution for this terminal session.
