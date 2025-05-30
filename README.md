@@ -1,2 +1,2 @@
 # public ags scripts
- some small scripts i have created to meke life easyer at work.
+Some small scripts I have created to make life easier at work.
