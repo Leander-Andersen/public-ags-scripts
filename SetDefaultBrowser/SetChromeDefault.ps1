@@ -1,5 +1,5 @@
-# SetBraveDefault.ps1 - Sets Brave as default browser with scheduled task
-Write-Host "Setting up Brave as default browser..." -ForegroundColor Green
+# SetChromeDefault.ps1 - Sets Chrome as default browser with scheduled task
+Write-Host "Setting up Chrome as default browser..." -ForegroundColor Green
 
 # Define download URL and local path
 $setUserFTAUrl = "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetUserFTA.exe"
@@ -28,14 +28,14 @@ else {
     Write-Host "SetUserFTA.exe already exists." -ForegroundColor Green
 }
 
-# Set Brave as default browser
+# Set chrome as default browser
 $associations = @("http", "https", ".html", ".htm", ".pdf", ".mhtml", ".svg")
-Write-Host "Setting Brave browser associations..." -ForegroundColor Yellow
+Write-Host "Setting Chrome browser associations..." -ForegroundColor Yellow
 
 foreach ($assoc in $associations) {
-    Write-Host "Setting $assoc to BraveHTML..." -ForegroundColor White
+    Write-Host "Setting $assoc to ChromeHTML..." -ForegroundColor White
     try {
-        & $setUserFTAPath $assoc BraveHTML
+        & $setUserFTAPath $assoc ChromeHTML
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "SetUserFTA returned exit code $LASTEXITCODE for $assoc"
         }
@@ -46,17 +46,17 @@ foreach ($assoc in $associations) {
 }
 
 # Create scheduled task for maintenance
-$taskName = "EnsureBraveDefault"
+$taskName = "EnsurChromeDefault"
 $taskScriptDir = "C:\SetdefaultBrowser"
-$taskScriptPath = Join-Path $taskScriptDir "BraveMaintenanceTask.ps1"
+$taskScriptPath = Join-Path $taskScriptDir "ChromeMaintenanceTask.ps1"
 
 Write-Host "Setting up scheduled task for browser maintenance..." -ForegroundColor Yellow
 
 # Create maintenance script that downloads and runs from web server
 $maintenanceScriptContent = @"
-# Brave Browser Maintenance Task - Always downloads latest from web server
+# Chrome Browser Maintenance Task - Always downloads latest from web server
 try {
-    `$webScript = Invoke-WebRequest -Uri "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1" -UseBasicParsing
+    `$webScript = Invoke-WebRequest -Uri "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1" -UseBasicParsing
     if (`$webScript.StatusCode -eq 200) {
         # Execute the downloaded script content (but skip the scheduled task creation part)
         `$scriptContent = `$webScript.Content
@@ -67,14 +67,14 @@ try {
 }
 catch {
     # Fallback to local execution if web server is unavailable
-    Write-EventLog -LogName Application -Source "BraveDefault" -EventId 1001 -EntryType Warning -Message "Failed to download script from web server, using local fallback: `$_"
+    Write-EventLog -LogName Application -Source "ChromeDefault" -EventId 1001 -EntryType Warning -Message "Failed to download script from web server, using local fallback: `$_"
     
     # Local fallback logic
     `$setUserFTAPath = "C:\SetdefaultBrowser\SetUserFTA\SetUserFTA.exe"
     if (Test-Path `$setUserFTAPath) {
         `$associations = @("http", "https", ".html", ".htm", ".pdf", ".mhtml", ".svg")
         foreach (`$assoc in `$associations) {
-            & `$setUserFTAPath `$assoc BraveHTML
+            & `$setUserFTAPath `$assoc ChromeHTML
         }
     }
 }
@@ -102,7 +102,7 @@ catch {
 try {
     # Create event source for logging if it doesn't exist
     try {
-        New-EventLog -LogName Application -Source "BraveDefault" -ErrorAction SilentlyContinue
+        New-EventLog -LogName Application -Source "ChromeDefault" -ErrorAction SilentlyContinue
     } catch { }
 
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$taskScriptPath`""
@@ -110,7 +110,7 @@ try {
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
 
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Maintains Brave browser as default by downloading latest script from web server"
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Maintains Chrome browser as default by downloading latest script from web server"
 
     Write-Host "Scheduled task '$taskName' created successfully!" -ForegroundColor Green
     
@@ -122,4 +122,4 @@ catch {
     Write-Error "Failed to create scheduled task: $_"
 }
 
-Write-Host "Brave browser setup completed successfully!" -ForegroundColor Green
+Write-Host "Chrome browser setup completed successfully!" -ForegroundColor Green
