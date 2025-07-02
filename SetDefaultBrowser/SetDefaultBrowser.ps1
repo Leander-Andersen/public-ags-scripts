@@ -23,8 +23,10 @@ Write-Host "(3) Firefox" -ForegroundColor White
 $DefaultBrowser = Read-Host "Enter your choice"
 
 # Define your web server URLs - UPDATE THESE TO YOUR ACTUAL URLS
-$baseUrl = "http://script.isame12.xyz/public-ags-scripts"
+
 $braveScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1"
+$chromeScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1"
+$firefoxScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetFirefoxDefault.ps1"
 
 
 # Run the appropriate script based on user selection
@@ -41,6 +43,33 @@ if ($DefaultBrowser -eq "1") {
         Write-Host "you go to hell and go down" -ForegroundColor Red
     }
 }
-Write-Host "Script execution completed!" -ForegroundColor Green
-Write-Host "Press any key to continue..." -ForegroundColor Yellow
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+elseif ($DefaultBrowser -eq "2") {
+    Write-Host "Downloading and running Chrome default script..." -ForegroundColor Yellow
+    try {
+        $scriptContent = [System.Text.Encoding]::UTF8.GetString(
+    (Invoke-WebRequest -UseBasicParsing -Uri $chromeScriptUrl).Content
+    )
+    Invoke-Expression $scriptContent
+    }
+    catch {
+        Write-Error "Failed to download or execute Chrome script: $_ go die"
+        Write-Host "you go to hell and go down" -ForegroundColor Red
+    }
+}
+elseif ($DefaultBrowser -eq "3") {
+    Write-Host "Downloading and running Firefox default script..." -ForegroundColor Yellow
+    try {
+        $scriptContent = [System.Text.Encoding]::UTF8.GetString(
+    (Invoke-WebRequest -UseBasicParsing -Uri $firefoxScriptUrl).Content
+    )
+    Invoke-Expression $scriptContent
+    }
+    catch {
+        Write-Error "Failed to download or execute Firefox script: $_ go die"
+        Write-Host "you go to hell and go down" -ForegroundColor Red
+    }
+}
+else {
+    Write-Host "Invalid selection. Please run the script again." -ForegroundColor Red
+}
