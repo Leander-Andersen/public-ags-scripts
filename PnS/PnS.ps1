@@ -56,3 +56,44 @@ $PnS.Add("Modellnummer", $modelNumber)
 
 #write to host the hash table
 write-output $PnS
+
+#define a function to display additional information
+function additionalInfo {
+    param (
+        $PnS
+    )
+    Write-Host """
+    
+    
+Additional Information:"""
+    $computerInfo = @{}
+    #Get some additionals
+    $hostname = $env:COMPUTERNAME
+    $osVersion = (Get-WmiObject Win32_OperatingSystem).Caption
+    $osVersion += " " + (Get-WmiObject Win32_OperatingSystem).Version
+    
+    #add the hostname to the hash table
+    $computerInfo.Add("Hostname", $hostname)
+    #add the OS version to the hash table
+    $computerInfo.Add("OS Version", $osVersion)
+    #add the current user to the hash table
+    $currentUser = $env:USERNAME
+    $computerInfo.Add("Current User", $currentUser)
+
+    #write to host the hash table
+    write-output $computerInfo
+
+    #Get printer information and filter specific properties
+    $printers = Get-Printer | Select-Object Name, DriverName, PortName
+    Write-Host "Printers:"
+    $printers | Format-Table -AutoSize
+
+    
+
+}
+
+$advanced = Read-Host "See more? (y/n)"
+
+if ($advanced -eq "y" -or $advanced -eq "yes") {
+    additionalInfo($PnS)
+}
