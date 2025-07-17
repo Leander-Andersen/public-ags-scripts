@@ -1,0 +1,4 @@
+Hi!
+
+This script is intended to be used with Windows upgrade keys—the ones you get from an Azure tenant.
+The reason for this is that they are often finicky and hard to activate, especially in the GUI.
