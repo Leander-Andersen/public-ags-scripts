@@ -35,6 +35,11 @@ $regPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 $currentKey = (Get-ItemProperty -Path $regPath).DigitalProductId
 $currentKey | Out-File -FilePath "$env:USERPROFILE\Desktop\CurrentKeyBackup.txt"
 
+#write this to the console
+Write-Output "Current Windows key: $currentKey"
+Write-Output "Current Windows key has been backed up to $env:USERPROFILE\Desktop\CurrentKeyBackup.txt"
+
+
 #Get the new key from the user
 $newKey = Read-Host "Please enter your new Windows key"
 
