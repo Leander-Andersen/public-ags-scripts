@@ -1,3 +1,5 @@
+
+
 # SetBraveDefault.ps1 - Sets Brave as default browser with scheduled task
 Write-Host "Setting up Brave as default browser..." -ForegroundColor Green
 
