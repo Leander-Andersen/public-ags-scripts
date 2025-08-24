@@ -29,58 +29,123 @@ else {
 }
 
 # Set Firefox as default browser
-$associations = @("http", "https", ".html", ".htm", ".pdf", ".mhtml", ".svg")
-Write-Host "Setting Firefox browser associations..." -ForegroundColor Yellow
-
-foreach ($assoc in $associations) {
-    Write-Host "Setting $assoc to FirefoxURL..." -ForegroundColor White
-    try {
-        & $setUserFTAPath $assoc FirefoxURL
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "SetUserFTA returned exit code $LASTEXITCODE for $assoc"
+# Resolve Firefox InstallID (hash depends on install path)
+function Get-FirefoxInstallId {
+    $cands = @(
+        "HKLM:\SOFTWARE\Mozilla\Firefox\TaskBarIDs",
+        "HKLM:\SOFTWARE\WOW6432Node\Mozilla\Firefox\TaskBarIDs"
+    )
+    foreach ($key in $cands) {
+        if (Test-Path $key) {
+            $props = Get-ItemProperty $key
+            foreach ($p in $props.PSObject.Properties) {
+                # Values under TaskBarIDs are like: "C:\Program Files\Mozilla Firefox" = "308046B0AF4A39CB"
+                if ($p.MemberType -eq 'NoteProperty' -and ($p.Name -like "*Mozilla Firefox")) {
+                    if ($p.Value) { return $p.Value }
+                }
+            }
         }
     }
-    catch {
-        Write-Error "Failed to set association for $assoc`: $_"
+    # Safe fallback: 64-bit default ID
+    return "308046B0AF4A39CB"
+}
+
+$installId = Get-FirefoxInstallId
+$ffURL = "FirefoxURL-$installId"
+$ffHTML = "FirefoxHTML-$installId"
+
+# TIP: One-liner that makes Firefox the default browser automatically.
+# This sets http/https and the common HTML types for the current user.
+# Requires SetUserFTA v2.x+
+# & $setUserFTAPath HKCU "Firefox-$installId"
+
+# If you also want specific file extensions, map them explicitly:
+$assocMap = @{
+    "http"   = $ffURL
+    "https"  = $ffURL
+    ".htm"   = $ffHTML
+    ".html"  = $ffHTML
+    ".xht"   = $ffHTML
+    ".xhtml" = $ffHTML
+    ".svg"   = $ffHTML
+    ".pdf"   = $ffHTML   # Opens PDFs in Firefox's built-in viewer
+    # Consider skipping .mhtml: Firefox doesn't natively support it
+    # ".mhtml" = $ffHTML  # Not recommended
+}
+
+Write-Host "Setting Firefox associations (InstallID=$installId)..." -ForegroundColor Yellow
+foreach ($k in $assocMap.Keys) {
+    $progId = $assocMap[$k]
+    Write-Host "  $k -> $progId" -ForegroundColor White
+    & $setUserFTAPath $k $progId
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "SetUserFTA exit code $LASTEXITCODE for $k"
     }
 }
 
-# Create scheduled task for maintenance
-$taskName = "EnsurFirefoxDefault"
-$taskScriptDir = "C:\SetdefaultBrowser"
-$taskScriptPath = Join-Path $taskScriptDir "FirefoxMaintenanceTask.ps1"
-
-Write-Host "Setting up scheduled task for browser maintenance..." -ForegroundColor Yellow
-
-# Create maintenance script that downloads and runs from web server
+# --- Update your maintenance script fallback to mirror the same logic ---
 $maintenanceScriptContent = @"
 # Firefox Browser Maintenance Task - Always downloads latest from web server
 try {
     `$webScript = Invoke-WebRequest -Uri "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetFirefoxDefault.ps1" -UseBasicParsing
     if (`$webScript.StatusCode -eq 200) {
-        # Execute the downloaded script content (but skip the scheduled task creation part)
         `$scriptContent = `$webScript.Content
-        # Remove the scheduled task creation section to avoid infinite loops
         `$scriptContent = `$scriptContent -replace '(?s)# Create scheduled task.*?Write-Host "Script execution completed!"', 'Write-Host "Browser associations updated successfully!"'
         Invoke-Expression `$scriptContent
     }
 }
 catch {
-    # Fallback to local execution if web server is unavailable
-    Write-EventLog -LogName Application -Source "FirefoxDefault" -EventId 1001 -EntryType Warning -Message "Failed to download script from web server, using local fallback: `$_"
-    
-    # Local fallback logic
+    # Local fallback
     `$setUserFTAPath = "C:\SetdefaultBrowser\SetUserFTA\SetUserFTA.exe"
     if (Test-Path `$setUserFTAPath) {
-        `$associations = @("http", "https", ".html", ".htm", ".pdf", ".mhtml", ".svg")
-        foreach (`$assoc in `$associations) {
-            & `$setUserFTAPath `$assoc FirefoxURL
+        function Get-FirefoxInstallId {
+            `$cands = @("HKLM:\SOFTWARE\Mozilla\Firefox\TaskBarIDs","HKLM:\SOFTWARE\WOW6432Node\Mozilla\Firefox\TaskBarIDs")
+            foreach (`$key in `$cands) {
+                if (Test-Path `$key) {
+                    `$props = Get-ItemProperty `$key
+                    foreach (`$p in `$props.PSObject.Properties) {
+                        if (`$p.MemberType -eq 'NoteProperty' -and (`$p.Name -like "*Mozilla Firefox")) {
+                            if (`$p.Value) { return `$p.Value }
+                        }
+                    }
+                }
+            }
+            return "308046B0AF4A39CB"
         }
+        `$id     = Get-FirefoxInstallId
+        `$ffURL  = "FirefoxURL-`$id"
+        `$ffHTML = "FirefoxHTML-`$id"
+
+        `$assocMap = @{
+            "http"   = `$ffURL
+            "https"  = `$ffURL
+            ".htm"   = `$ffHTML
+            ".html"  = `$ffHTML
+            ".xht"   = `$ffHTML
+            ".xhtml" = `$ffHTML
+            ".svg"   = `$ffHTML
+            ".pdf"   = `$ffHTML
+        }
+        Write-Host "Setting Firefox associations (InstallID=$installId)..." -ForegroundColor Yellow
+        foreach ($k in $assocMap.Keys) {
+            $progId = $assocMap[$k]
+            Write-Host "  $k -> $progId" -ForegroundColor White
+            & $setUserFTAPath $k $progId
+            if ($LASTEXITCODE -ne 0) {
+            Write-Warning "SetUserFTA exit code $LASTEXITCODE for $k"
+        }
+}}
     }
 }
 "@
 
+
 # Create directory and maintenance script
+
+$taskName = "EnsureFirefoxDefault"
+$taskScriptDir = "C:\SetdefaultBrowser"
+$taskScriptPath = Join-Path $taskScriptDir "FirefoxMaintenanceTask.ps1"
+
 if (-not (Test-Path $taskScriptDir)) {
     New-Item -ItemType Directory -Path $taskScriptDir -Force | Out-Null
 }
@@ -103,7 +168,8 @@ try {
     # Create event source for logging if it doesn't exist
     try {
         New-EventLog -LogName Application -Source "FirefoxDefault" -ErrorAction SilentlyContinue
-    } catch { }
+    }
+    catch { }
 
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$taskScriptPath`""
     $trigger = New-ScheduledTaskTrigger -AtLogOn
