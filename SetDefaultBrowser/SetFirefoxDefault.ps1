@@ -24,7 +24,7 @@ New-Item -Path $installDir -ItemType Directory -Force | Out-Null
 New-Item -Path $logDir -ItemType Directory -Force | Out-Null
 New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
 
-function Download-SetUserFTA {
+function Get-SetUserFTA {
     if (-not (Test-Path $setUserFTAPath)) {
         try {
             Write-Host "Downloading SetUserFTA.exe..."
@@ -109,7 +109,7 @@ function Install-Self {
     }
 }
 
-function Create-Log {
+function New-Log {
     $log = Join-Path $logDir ("Run-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
     return $log
 }
@@ -151,10 +151,10 @@ function Unregister-MaintenanceTask {
 Install-Self
 
 # Download SetUserFTA and apply associations now
-$logFile = Create-Log
+$logFile = New-Log
 Start-Transcript -Path $logFile -Force
 try {
-    $haveTool = Download-SetUserFTA
+    $haveTool = Get-SetUserFTA
     if ($haveTool) {
         Set-Firefox-Associations -exePath $setUserFTAPath
     } else {
@@ -176,7 +176,7 @@ catch {
 finally {
     Stop-Transcript
 }
-```// filepath: d:\OneDrive - Vestfold fylkeskommune\Documents\GithubDesktopRepos\public-ags-scripts\SetDefaultBrowser\SetFirefoxDefault.ps1
+```
 <#
 Single-file installer + maintainer:
 Run this once elevated. It will copy itself to C:\SetdefaultBrowser\SetFirefoxDefault.ps1,
@@ -203,7 +203,7 @@ New-Item -Path $installDir -ItemType Directory -Force | Out-Null
 New-Item -Path $logDir -ItemType Directory -Force | Out-Null
 New-Item -Path $downloadFolder -ItemType Directory -Force | Out-Null
 
-function Download-SetUserFTA {
+function Get-SetUserFTA {
     if (-not (Test-Path $setUserFTAPath)) {
         try {
             Write-Host "Downloading SetUserFTA.exe..."
@@ -288,7 +288,7 @@ function Install-Self {
     }
 }
 
-function Create-Log {
+function New-Log {
     $log = Join-Path $logDir ("Run-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
     return $log
 }
@@ -330,10 +330,10 @@ function Unregister-MaintenanceTask {
 Install-Self
 
 # Download SetUserFTA and apply associations now
-$logFile = Create-Log
+$logFile = New-Log
 Start-Transcript -Path $logFile -Force
 try {
-    $haveTool = Download-SetUserFTA
+    $haveTool = Get-SetUserFTA
     if ($haveTool) {
         Set-Firefox-Associations -exePath $setUserFTAPath
     } else {
