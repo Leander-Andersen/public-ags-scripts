@@ -1,75 +1,70 @@
-# Ensure script runs as administrator
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Warning "Please run this script as an Administrator."
-    $runAsAdmin = Read-Host "Do you want to run this script as an Administrator? (Y/N)"
-    
-    if ($runAsAdmin -eq "Y" -or $runAsAdmin -eq "y" -or $runAsAdmin -eq "Yes" -or $runAsAdmin -eq "yes") {
-        # Start a new process running the script as administrator
-        Start-Process powershell -Verb RunAs -ArgumentList ('-noprofile -noexit -file "{0}"' -f ($MyInvocation.MyCommand.Definition))
-        exit
-    }
-    else {
-        exit
-    }
-}
-else {
-    Write-Host "Running as Administrator" -ForegroundColor Green
+[CmdletBinding()]
+param(
+    [ValidateSet('Brave','Chrome','Firefox')]
+    [string]$Browser
+)
+
+# URLs (use HTTPS)
+$urls = @{
+    Brave   = 'https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1'
+    Chrome  = 'https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1'
+    Firefox = 'https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetFirefoxDefault.ps1'
 }
 
-Write-Host "What browser do you want as default?" -ForegroundColor Cyan
-Write-Host "(1) Brave" -ForegroundColor White
-Write-Host "(2) Chrome" -ForegroundColor White  
-Write-Host "(3) Firefox" -ForegroundColor White
-$DefaultBrowser = Read-Host "Enter your choice"
+# Ensure TLS 1.2 is enabled for older PowerShell/WinHTTP stacks
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {Write-Host "Failed to set TLS 1.2"}
 
-# Define your web server URLs - UPDATE THESE TO YOUR ACTUAL URLS
-
-$braveScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1"
-$chromeScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1"
-$firefoxScriptUrl = "http://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetFirefoxDefault.ps1"
-
-
-# Run the appropriate script based on user selection
-if ($DefaultBrowser -eq "1") {
-    Write-Host "Downloading and running Brave default script..." -ForegroundColor Yellow
-    try {
-        $scriptContent = [System.Text.Encoding]::UTF8.GetString(
-    (Invoke-WebRequest -UseBasicParsing -Uri $braveScriptUrl).Content
+function Invoke-RemoteScriptElevated {
+    param(
+        [Parameter(Mandatory)][ValidateSet('Brave','Chrome','Firefox')] [string]$Browser
     )
-    Invoke-Expression $scriptContent
-    }
-    catch {
-        Write-Error "Failed to download or execute Brave script: $_ go die"
-        Write-Host "you go to hell and go down" -ForegroundColor Red
+
+    $url = $urls[$Browser]
+    if (-not $url) { throw "No URL mapped for $Browser" }
+
+    # Download to a temp file so the script can resolve its own path ($PSCommandPath)
+    $tmpDir = Join-Path $env:TEMP 'DefaultBrowserBootstrap'
+    New-Item -Path $tmpDir -ItemType Directory -Force | Out-Null
+
+    $fileName = [IO.Path]::GetFileName($url)
+    if (-not $fileName -or -not $fileName.ToLower().EndsWith('.ps1')) { $fileName = "$Browser.ps1" }
+    $dest = Join-Path $tmpDir $fileName
+
+    Write-Host "Downloading $Browser script..." -ForegroundColor Yellow
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $dest -TimeoutSec 60
+
+    if (-not (Test-Path $dest)) { throw "Download failed: $url" }
+
+    # Run elevated so it can install files and create the Startup link for all users
+    $pwsh = "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $args = "-NoProfile -ExecutionPolicy Bypass -File `"$dest`""
+
+    Write-Host "Launching $Browser installer elevated..." -ForegroundColor Cyan
+    $p = Start-Process -FilePath $pwsh -Verb RunAs -ArgumentList $args -Wait -PassThru
+    if ($p.ExitCode -ne 0) {
+        Write-Warning "$Browser script exited with code $($p.ExitCode)"
+    } else {
+        Write-Host "$Browser default configuration completed." -ForegroundColor Green
     }
 }
 
-elseif ($DefaultBrowser -eq "2") {
-    Write-Host "Downloading and running Chrome default script..." -ForegroundColor Yellow
-    try {
-        $scriptContent = [System.Text.Encoding]::UTF8.GetString(
-    (Invoke-WebRequest -UseBasicParsing -Uri $chromeScriptUrl).Content
-    )
-    Invoke-Expression $scriptContent
-    }
-    catch {
-        Write-Error "Failed to download or execute Chrome script: $_ go die"
-        Write-Host "you go to hell and go down" -ForegroundColor Red
-    }
-}
-elseif ($DefaultBrowser -eq "3") {
-    Write-Host "Downloading and running Firefox default script..." -ForegroundColor Yellow
-    try {
-        $scriptContent = [System.Text.Encoding]::UTF8.GetString(
-    (Invoke-WebRequest -UseBasicParsing -Uri $firefoxScriptUrl).Content
-    )
-    Invoke-Expression $scriptContent
-    }
-    catch {
-        Write-Error "Failed to download or execute Firefox script: $_ go die"
-        Write-Host "you go to hell and go down" -ForegroundColor Red
+# Interactive prompt if -Browser not supplied
+if (-not $PSBoundParameters.ContainsKey('Browser')) {
+    Write-Host "What browser do you want as default?" -ForegroundColor Cyan
+    Write-Host "(1) Brave"
+    Write-Host "(2) Chrome"
+    Write-Host "(3) Firefox"
+    $choice = Read-Host "Enter your choice"
+
+    switch ($choice) {
+        '1' { $Browser = 'Brave' }
+        '2' { $Browser = 'Chrome' }
+        '3' { $Browser = 'Firefox' }
+        default {
+            Write-Host "Invalid selection. Status: FYN 💔🥀" -ForegroundColor Red
+            exit 1
+        }
     }
 }
-else {
-    Write-Host "Invalid selection. Please run the script again." -ForegroundColor Red
-}
+
+Invoke-RemoteScriptElevated -Browser $Browser
