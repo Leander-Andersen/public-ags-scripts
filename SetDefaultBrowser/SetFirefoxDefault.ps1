@@ -4,6 +4,7 @@ Single-file installer + maintainer (no scheduled task):
   download SetUserFTA.exe, apply defaults now, and create a Startup shortcut that re-runs
   this script in non-elevated mode (-Mode Enforce) at each user logon.
 - At logon, it re-applies Firefox associations without elevation (Entra ID-friendly).
+- Absolute path to STARTUP FOLDER: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup
 #>
 
 [CmdletBinding()]
