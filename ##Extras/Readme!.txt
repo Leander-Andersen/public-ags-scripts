@@ -1,1 +1,0 @@
-Put these files at the root of the webserver that will be hosting these scripts
