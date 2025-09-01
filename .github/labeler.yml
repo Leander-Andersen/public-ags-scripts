@@ -1,8 +1,53 @@
 powershell:
   - '**/*.ps1'
+
 documentation:
   - '**/*.md'
+  - '**/*.txt'
+  - '**/*.rst'
+
 github-actions:
   - '.github/workflows/*.yml'
+
 config:
   - '**/*.yml'
+  - '**/*.json'
+  - '**/*.ini'
+  - '**/*.toml'
+  - '**/*.cfg'
+
+python:
+  - '**/*.py'
+  - '**/*.pyw'
+
+web:
+  - '**/*.html'
+  - '**/*.css'
+  - '**/*.js'
+  - '**/*.php'
+  - '**/*.ts'
+  - '**/*.jsx'
+  - '**/*.tsx'
+
+binary:
+  - '**/*.exe'
+  - '**/*.dll'
+  - '**/*.so'
+  - '**/*.bin'
+  - '**/*.deb'
+  - '**/*.msi'
+
+images:
+  - '**/*.png'
+  - '**/*.jpg'
+  - '**/*.jpeg'
+  - '**/*.gif'
+  - '**/*.svg'
+  - '**/*.ico'
+
+archives:
+  - '**/*.zip'
+  - '**/*.tar'
+  - '**/*.tar.gz'
+  - '**/*.7z'
+  - '**/*.rar'
