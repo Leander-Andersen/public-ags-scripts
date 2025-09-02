@@ -1,2 +1,0 @@
-gjør hva du tror den gjør. Den matcher alle filene som beskrevet i patterns og sletter dem. Den sletter også dupligater av filene.
-Den går også gjennom alle sub-directories av rootDirectory som du angir øverst
