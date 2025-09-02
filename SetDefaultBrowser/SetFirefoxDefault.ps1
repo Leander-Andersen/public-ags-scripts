@@ -18,7 +18,7 @@ param(
 $installDir = "C:\SetdefaultBrowser"
 $installedScript = Join-Path $installDir "SetFirefoxDefault.ps1"
 
-$setUserFTAUrl = "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetUserFTA.exe"
+$setUserFTAUrl = "https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetUserFTA.exe"
 $downloadFolderMachine = Join-Path $installDir "SetUserFTA"
 $setUserFTAPathMachine = Join-Path $downloadFolderMachine "SetUserFTA.exe"
 
