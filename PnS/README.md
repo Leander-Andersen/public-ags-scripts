@@ -3,7 +3,7 @@
 
 To use, paste the following command into PowerShell:
 ```powershell
-iwr -useb http://script.isame12.xyz/public-ags-scripts/PnS/PnS.ps1 | iex
+iwr -useb https://<Domain>/<scriptFolder>/PnS/PnS.ps1 | iex
 ```
 If script execution is disabled, run PowerShell as Administrator or enter: 
 ```powershell

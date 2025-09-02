@@ -2,7 +2,7 @@
 Write-Host "Setting up Chrome as default browser..." -ForegroundColor Green
 
 # Define download URL and local path
-$setUserFTAUrl = "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetUserFTA.exe"
+$setUserFTAUrl = "https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetUserFTA.exe"
 $downloadFolder = "C:\SetdefaultBrowser\SetUserFTA"
 $setUserFTAPath = Join-Path $downloadFolder "SetUserFTA.exe"
 
@@ -56,7 +56,7 @@ Write-Host "Setting up scheduled task for browser maintenance..." -ForegroundCol
 $maintenanceScriptContent = @"
 # Chrome Browser Maintenance Task - Always downloads latest from web server
 try {
-    `$webScript = Invoke-WebRequest -Uri "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1" -UseBasicParsing
+    `$webScript = Invoke-WebRequest -Uri "https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetChromeDefault.ps1" -UseBasicParsing
     if (`$webScript.StatusCode -eq 200) {
         # Execute the downloaded script content (but skip the scheduled task creation part)
         `$scriptContent = `$webScript.Content
