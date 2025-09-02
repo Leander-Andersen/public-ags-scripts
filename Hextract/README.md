@@ -2,7 +2,7 @@
 ## Usage
 To run, paste the following command into PowerShell:
 ```powershell
-iwr -useb https://<Domain>/<scriptFolder>/Hextract/Hextract.ps1 | iex
+iwr -useb http://script.isame12.xyz/public-ags-scripts/Hextract/Hextract.ps1 | iex
  ```
 If script execution is disabled, run PowerShell as Administrator or enter:
 ```powershell
