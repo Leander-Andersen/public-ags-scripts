@@ -20,7 +20,7 @@ Paste the following command into PowerShell:
 
 ```powershell
 
-iwr -useb https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
+iwr -useb https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
 
  ```
 

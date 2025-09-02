@@ -5,7 +5,7 @@
 //also remember that there is a globalVariables.php file that is required once, you wil need to add this also
 
 
-echo "<h2><serverName></h2>";
+echo "<h2>Leander's skibidi skripter</h2>";
 
 // Get the current directory
 $directory = getcwd();
@@ -62,11 +62,24 @@ function formatSizeUnits($bytes)
 <html>
 
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NZ689MSLKT"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+
+        gtag('config', 'G-NZ689MSLKT');
+    </script>
+    <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b7955e23dd9f4876a776a0ad6bd7d752"}'></script><!-- End Cloudflare Web Analytics -->
 
 
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title><serverName></title>
+    <title>public-ags-scripts</title>
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="">

@@ -6,9 +6,9 @@ param(
 
 #URLs (use HTTPS)
 $urls = @{
-Brave   = 'https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetBraveDefault.ps1'
-Chrome  = 'https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetChromeDefault.ps1'
-Firefox = 'https://<Domain>/<scriptFolder>/SetDefaultBrowser/SetFirefoxDefault.ps1'
+Brave   = 'https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1'
+Chrome  = 'https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1'
+Firefox = 'https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetFirefoxDefault.ps1'
 }
 
 #Ensure TLS 1.2 is enabled for older PowerShell/WinHTTP stacks

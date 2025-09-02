@@ -1,0 +1,13 @@
+This script voids default browser intune policy by setting default browser with the personal Version of SetUserFTA, And creating a task at logon to change browser to deisred type
+
+Link: https://setuserfta.com/
+
+To run, paste the following command into PowerShell:
+
+iwr -useb https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
+
+If script execution is disabled, run PowerShell as Administrator or enter:
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Unrestricted
+
+to allow unrestricted execution for this terminal session.
