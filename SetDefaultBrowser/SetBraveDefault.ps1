@@ -1,5 +1,5 @@
 # SetBraveDefault.ps1 - Sets Brave as default browser with scheduled task
-Write-Host "Setting up Brave as default browser..." -ForegroundColor Green
+Write-Output "Setting up Brave as default browser..." -ForegroundColor Green
 
 # Define download URL and local path
 $setUserFTAUrl = "https://script.isame12.xyz/public-ags-scripts/SetDefaultBrowser/SetUserFTA.exe"
@@ -8,16 +8,16 @@ $setUserFTAPath = Join-Path $downloadFolder "SetUserFTA.exe"
 
 # Create folder if missing
 if (-not (Test-Path $downloadFolder)) {
-    Write-Host "Creating directory: $downloadFolder" -ForegroundColor Yellow
+    Write-Output "Creating directory: $downloadFolder" -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $downloadFolder -Force | Out-Null
 }
 
 # Download SetUserFTA if not exists
 if (-not (Test-Path $setUserFTAPath)) {
-    Write-Host "Downloading SetUserFTA.exe..." -ForegroundColor Yellow
+    Write-Output "Downloading SetUserFTA.exe..." -ForegroundColor Yellow
     try {
         Invoke-WebRequest -Uri $setUserFTAUrl -OutFile $setUserFTAPath
-        Write-Host "Download completed successfully." -ForegroundColor Green
+        Write-Output "Download completed successfully." -ForegroundColor Green
     }
     catch {
         Write-Error "Failed to download SetUserFTA.exe: $_"
@@ -25,15 +25,15 @@ if (-not (Test-Path $setUserFTAPath)) {
     }
 }
 else {
-    Write-Host "SetUserFTA.exe already exists." -ForegroundColor Green
+    Write-Output "SetUserFTA.exe already exists." -ForegroundColor Green
 }
 
 # Set Brave as default browser
 $associations = @("http", "https", ".html", ".htm", ".pdf", ".mhtml", ".svg")
-Write-Host "Setting Brave browser associations..." -ForegroundColor Yellow
+Write-Output "Setting Brave browser associations..." -ForegroundColor Yellow
 
 foreach ($assoc in $associations) {
-    Write-Host "Setting $assoc to BraveHTML..." -ForegroundColor White
+    Write-Output "Setting $assoc to BraveHTML..." -ForegroundColor White
     try {
         & $setUserFTAPath $assoc BraveHTML
         if ($LASTEXITCODE -ne 0) {
@@ -50,7 +50,7 @@ $taskName = "EnsureBraveDefault"
 $taskScriptDir = "C:\SetdefaultBrowser"
 $taskScriptPath = Join-Path $taskScriptDir "BraveMaintenanceTask.ps1"
 
-Write-Host "Setting up scheduled task for browser maintenance..." -ForegroundColor Yellow
+Write-Output "Setting up scheduled task for browser maintenance..." -ForegroundColor Yellow
 
 # Create maintenance script that downloads and runs from web server
 $maintenanceScriptContent = @"
@@ -61,7 +61,7 @@ try {
         # Execute the downloaded script content (but skip the scheduled task creation part)
         `$scriptContent = `$webScript.Content
         # Remove the scheduled task creation section to avoid infinite loops
-        `$scriptContent = `$scriptContent -replace '(?s)# Create scheduled task.*?Write-Host "Script execution completed!"', 'Write-Host "Browser associations updated successfully!"'
+        `$scriptContent = `$scriptContent -replace '(?s)# Create scheduled task.*?Write-Output "Script execution completed!"', 'Write-Output "Browser associations updated successfully!"'
         Invoke-Expression `$scriptContent
     }
 }
@@ -86,16 +86,16 @@ if (-not (Test-Path $taskScriptDir)) {
 }
 
 $maintenanceScriptContent | Out-File -FilePath $taskScriptPath -Encoding UTF8 -Force
-Write-Host "Maintenance script created at: $taskScriptPath" -ForegroundColor Green
+Write-Output "Maintenance script created at: $taskScriptPath" -ForegroundColor Green
 
 # Check if scheduled task already exists
 try {
     $existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
-    Write-Host "Scheduled task '$taskName' already exists. Updating it..." -ForegroundColor Yellow
+    Write-Output "Scheduled task '$taskName' already exists. Updating it..." -ForegroundColor Yellow
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 }
 catch {
-    Write-Host "Creating new scheduled task '$taskName'..." -ForegroundColor Yellow
+    Write-Output "Creating new scheduled task '$taskName'..." -ForegroundColor Yellow
 }
 
 # Create the scheduled task
@@ -112,14 +112,14 @@ try {
 
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Maintains Brave browser as default by downloading latest script from web server"
 
-    Write-Host "Scheduled task '$taskName' created successfully!" -ForegroundColor Green
+    Write-Output "Scheduled task '$taskName' created successfully!" -ForegroundColor Green
     
     # Verify task creation
     $verifyTask = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
-    Write-Host "Task verification successful. Task state: $($verifyTask.State)" -ForegroundColor Green
+    Write-Output "Task verification successful. Task state: $($verifyTask.State)" -ForegroundColor Green
 }
 catch {
     Write-Error "Failed to create scheduled task: $_"
 }
 
-Write-Host "Brave browser setup completed successfully!" -ForegroundColor Green
+Write-Output "Brave browser setup completed successfully!" -ForegroundColor Green

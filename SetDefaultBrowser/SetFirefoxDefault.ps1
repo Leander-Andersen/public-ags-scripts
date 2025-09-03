@@ -78,7 +78,7 @@ function Get-SetUserFTA {
     if ($AllowMachineFolder) {
         try {
             New-Item -Path $downloadFolderMachine -ItemType Directory -Force | Out-Null
-            Write-Host "Downloading SetUserFTA.exe to $setUserFTAPathMachine..."
+            Write-Output "Downloading SetUserFTA.exe to $setUserFTAPathMachine..."
             Invoke-WebRequest -Uri $setUserFTAUrl -OutFile $setUserFTAPathMachine -UseBasicParsing -TimeoutSec 60
             if (Test-Path $setUserFTAPathMachine) { return $setUserFTAPathMachine }
         }
@@ -90,7 +90,7 @@ function Get-SetUserFTA {
     # Fallback to user-local copy
     try {
         New-Item -Path $downloadFolderUser -ItemType Directory -Force | Out-Null
-        Write-Host "Downloading SetUserFTA.exe to $setUserFTAPathUser..."
+        Write-Output "Downloading SetUserFTA.exe to $setUserFTAPathUser..."
         Invoke-WebRequest -Uri $setUserFTAUrl -OutFile $setUserFTAPathUser -UseBasicParsing -TimeoutSec 60
         if (Test-Path $setUserFTAPathUser) { return $setUserFTAPathUser }
     }
@@ -131,7 +131,7 @@ function Set-Firefox-Associations {
     }
 
     $id = Get-FirefoxInstallId
-    Write-Host "Firefox InstallID: $id"
+    Write-Output "Firefox InstallID: $id"
 
     $ffURL = "FirefoxURL-$id"
     $ffHTML = "FirefoxHTML-$id"
@@ -149,14 +149,14 @@ function Set-Firefox-Associations {
 
     foreach ($k in $assocMap.Keys) {
         $progId = $assocMap[$k]
-        Write-Host "Setting: $k -> $progId"
+        Write-Output "Setting: $k -> $progId"
         & "$exePath" $k $progId
         $exit = $LASTEXITCODE
         if ($exit -ne 0) {
             Write-Warning "SetUserFTA exit code $exit for $k"
         }
         else {
-            Write-Host "  OK"
+            Write-Output "  OK"
         }
     }
 }
@@ -167,7 +167,7 @@ function Install-Self {
     $src = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
     if ($src -and (Test-Path $src)) {
         Copy-Item -Path $src -Destination $installedScript -Force
-        Write-Host "Installed script to $installedScript"
+        Write-Output "Installed script to $installedScript"
     }
     else {
         Write-Warning "Unable to determine script file path; not copied."
@@ -213,7 +213,7 @@ function New-StartupShortcut {
     $sc.Save()
 
     if (Test-Path $lnkPath) {
-        Write-Host "Startup shortcut created: $lnkPath"
+        Write-Output "Startup shortcut created: $lnkPath"
         return $lnkPath
     }
     else {
@@ -228,7 +228,7 @@ function Remove-StartupShortcut {
     foreach ($p in @($commonLnk, $userLnk)) {
         if ($p -and (Test-Path $p)) {
             Remove-Item -Path $p -Force -ErrorAction SilentlyContinue
-            Write-Host "Removed startup shortcut: $p"
+            Write-Output "Removed startup shortcut: $p"
         }
     }
 }
@@ -260,13 +260,13 @@ if ($Mode -eq 'Install') {
             New-StartupShortcut -scriptToRun $installedScript
         }
 
-        Write-Host "Done (Install)."
-        Write-Host "Logs: $logDirInstall"
-        Write-Host "To stop automatic enforcement later, remove the shortcut:"
+        Write-Output "Done (Install)."
+        Write-Output "Logs: $logDirInstall"
+        Write-Output "To stop automatic enforcement later, remove the shortcut:"
         $commonHint = Join-Path (Get-CommonStartupPath) $shortcutName
         $userHint = Join-Path (Get-UserStartupPath)   $shortcutName
-        Write-Host "  Common: $commonHint"
-        Write-Host "  or User: $userHint"
+        Write-Output "  Common: $commonHint"
+        Write-Output "  or User: $userHint"
     }
     catch {
         Write-Error "Error during install: $_"
@@ -290,7 +290,7 @@ elseif ($Mode -eq 'Enforce') {
         else {
             Write-Warning "Could not obtain SetUserFTA; associations not changed."
         }
-        Write-Host "Done (Enforce). Logs: $logDirUser"
+        Write-Output "Done (Enforce). Logs: $logDirUser"
     }
     catch {
         Write-Error "Error during enforce: $_"

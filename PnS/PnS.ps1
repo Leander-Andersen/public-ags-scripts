@@ -1,11 +1,11 @@
 #make the formatting look goddie goddie
-write-host ""
+write-Output ""
 
 
 
 ""
-write-host "Leander's PnS script"
-write-host "--------------------"
+write-Output "Leander's PnS script"
+write-Output "--------------------"
 
 #create empty hash table
 $PnS = @{}

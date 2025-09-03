@@ -1,7 +1,7 @@
 #forsikrer at scriptet køres som administrator, om ikke, så opnes ett nytt vindu som kjører scriptet som administrator
 if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as an Administrator."
-    $runAsAdmin = Read-Host "Do you want to run this script as an Administrator? (Y/N)"
+    $runAsAdmin = Read-Output "Do you want to run this script as an Administrator? (Y/N)"
     
     if ($runAsAdmin -eq "Y" -or $runAsAdmin -eq "y" -or $runAsAdmin -eq "Yes" -or $runAsAdmin -eq "yes") {
         #starten en ny prosess som kjører scriptet som administrator
