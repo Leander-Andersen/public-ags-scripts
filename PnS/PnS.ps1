@@ -10,46 +10,55 @@ write-host "--------------------"
 #create empty hash table
 $PnS = @{}
 
-#extract the sku number/product number
-$skuObject = Get-WmiObject win32_computersystem | Select-Object SystemSKUNumber
+function ExtractInformation {
+    
+    #Get hostname
+    $Hostname = $env:COMPUTERNAME
 
-#convert the object to string
-$stringSku = [string]$skuObject
+    $PnS.Add("Hostname", $Hostname)
 
-#extract only the sku number from the string
-$inputString = $stringSku
-$skuNumber = $inputString -replace '.*SystemSKUNumber=([^}]+).*','$1'
+    #extract the sku number/product number
+    $skuObject = Get-WmiObject win32_computersystem | Select-Object SystemSKUNumber
 
-#add the sku number to the hash table with key "produktnummer"
-$PnS.Add("Produktnummer", $skuNumber)
+    #convert the object to string
+    $stringSku = [string]$skuObject
 
+    #extract only the sku number from the string
+    $inputString = $stringSku
+    $skuNumber = $inputString -replace '.*SystemSKUNumber=([^}]+).*', '$1'
 
-#extract the serial number
-$serialObject = Get-WmiObject win32_bios | Select-Object SerialNumber
+    #add the sku number to the hash table with key "produktnummer"
+    $PnS.Add("Produktnummer", $skuNumber)
 
-#convert the object to string
-$stringSerial = [string]$serialObject
+    #extract the serial number
+    $serialObject = Get-WmiObject win32_bios | Select-Object SerialNumber
 
-#extract only the serial number from the string
-$inputString = $stringSerial
-$serialNumber = $inputString -replace '.*SerialNumber=([^}]+).*','$1'
+    #convert the object to string
+    $stringSerial = [string]$serialObject
 
-#add the serial number to the hash table with key "serienummer
-$PnS.Add("Serienummer", $serialNumber)
+    #extract only the serial number from the string
+    $inputString = $stringSerial
+    $serialNumber = $inputString -replace '.*SerialNumber=([^}]+).*', '$1'
 
-#extract the model number
-$modelObject = Get-WmiObject win32_computersystem | Select-Object Model
+    #add the serial number to the hash table with key "serienummer
+    $PnS.Add("Serienummer", $serialNumber)
 
-#convert the object to string
-$stringModel = [string]$modelObject
+    #extract the model number
+    $modelObject = Get-WmiObject win32_computersystem | Select-Object Model
 
-#extract only the model number from the string
-$inputString = $stringModel
-$modelNumber = $inputString -replace '.*Model=([^}]+).*','$1'
+    #convert the object to string
+    $stringModel = [string]$modelObject
 
-#add the model number to the hash table with key "modellnummer
-$PnS.Add("Modellnummer", $modelNumber)
+    #extract only the model number from the string
+    $inputString = $stringModel
+    $modelNumber = $inputString -replace '.*Model=([^}]+).*', '$1'
 
+    #add the model number to the hash table with key "modellnummer
+    $PnS.Add("Modellnummer", $modelNumber)
+    
+}
+
+ExtractInformation($PnS)
 
 
 
@@ -68,7 +77,7 @@ function additionalInfo {
 Additional Information:"""
     $computerInfo = @{}
     #Get some additionals
-    $hostname = $env:COMPUTERNAME
+    
     $osVersion = (Get-WmiObject Win32_OperatingSystem).Caption
     $osVersion += " " + (Get-WmiObject Win32_OperatingSystem).Version
     
