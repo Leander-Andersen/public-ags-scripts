@@ -1,10 +1,5 @@
 <?php
-
-//Put me in the website root, this is a document that is referenced by the webserver
-//This is a simple directory listing script that displays files and directories in the current directory
-//also remember that there is a globalVariables.php file that is required once, you wil need to add this also
-
-
+// Your PHP code (e.g., log visitor data, process form input, etc.)
 echo "<h2>Leander's skibidi skripter</h2>";
 
 // Get the current directory
@@ -26,14 +21,31 @@ if (realpath($directory) !== realpath($_SERVER['DOCUMENT_ROOT'])) {
 // Display a styled directory listing like Apache's default
 echo '<ul>';
 foreach ($scanned_directory as $file) {
-    // Determine if it's a directory or file
+
     if (is_dir($file)) {
-        // Display directory link
-        echo '<li><span  class="material-symbols-outlined folderIcon">folder</span><a href="' . $file . '/">' . $file . '/</a></li>';
+
+        echo '<li><span class="material-symbols-outlined folderIcon">folder</span><a href="' . $file . '/">' . $file . '/</a></li>';
+
     } else {
-        // Display file link with size
+
         $filesize = filesize($file);
-        echo '<li><span  class="material-symbols-outlined fileIcon">draft</span><a href="' . $file . '">' . $file . '</a> (' . formatSizeUnits($filesize) . ')</li>';
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+        // absolute location of the file
+        $fullPath = realpath($directory . DIRECTORY_SEPARATOR . $file);
+
+        // convert to web-accessible relative path
+        $docroot = realpath($_SERVER['DOCUMENT_ROOT']);
+        $relPath = ltrim(str_replace($docroot, '', $fullPath), '/');
+
+        // route markdown to the viewer
+        if (in_array($ext, ['md', 'markdown'])) {
+            $href = '/viewer.php?f=' . rawurlencode($relPath);
+        } else {
+            $href = '/' . $relPath;
+        }
+
+        echo '<li><span class="material-symbols-outlined fileIcon">draft</span><a href="' . $href . '">' . $file . '</a> (' . formatSizeUnits($filesize) . ')</li>';
     }
 }
 echo '</ul>';
@@ -62,19 +74,31 @@ function formatSizeUnits($bytes)
 <html>
 
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NZ689MSLKT"></script>
+    <!-- Matomo -->
     <script>
-        window.dataLayer = window.dataLayer || [];
-
-        function gtag() {
-            dataLayer.push(arguments);
-        }
-        gtag('js', new Date());
-
-        gtag('config', 'G-NZ689MSLKT');
+        var _paq = window._paq = window._paq || [];
+        /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+        _paq.push(['trackPageView']);
+        _paq.push(['enableLinkTracking']);
+        (function () {
+            var u = "https://isame12.matomo.cloud/";
+            _paq.push(['setTrackerUrl', u + 'matomo.php']);
+            _paq.push(['setSiteId', '1']);
+            var d = document, g = d.createElement('script'), s = d.getElementsByTagName('script')[0];
+            g.async = true; g.src = 'https://cdn.matomo.cloud/isame12.matomo.cloud/matomo.js'; s.parentNode.insertBefore(g, s);
+        })();
     </script>
-    <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b7955e23dd9f4876a776a0ad6bd7d752"}'></script><!-- End Cloudflare Web Analytics -->
+    <!-- End Matomo Code -->
+
+    <!-- Cloudflare Web Analytics -->
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+        data-cf-beacon='{"token": "b7955e23dd9f4876a776a0ad6bd7d752"}'></script><!-- End Cloudflare Web Analytics -->
+
+
+
+
+
+
 
 
     <meta charset="utf-8">
@@ -86,9 +110,12 @@ function formatSizeUnits($bytes)
     <!--Get fonts from google fonts-->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+        rel="stylesheet">
     <!--Get icons from google fonts-->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 </head>
 
