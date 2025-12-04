@@ -145,6 +145,7 @@ function Set-Firefox-Associations {
         ".xhtml" = $ffHTML
         ".svg"   = $ffHTML
         ".pdf"   = $ffHTML
+        ".mhtml" = $ffHTML
     }
 
     foreach ($k in $assocMap.Keys) {
