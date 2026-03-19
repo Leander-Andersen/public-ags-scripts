@@ -94,7 +94,7 @@ function get_preview(array $files, array $replacements, string $base): array {
     $preview = [];
     foreach ($files as $rel) {
         $path  = $base . '/' . $rel;
-        $lines = file($path, FILE_KEEP_BLANK_LINES);
+        $lines = file($path);
         $diffs = [];
         foreach ($lines as $i => $line) {
             $new = str_replace(array_keys($replacements), array_values($replacements), $line);
