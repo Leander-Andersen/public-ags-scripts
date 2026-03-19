@@ -204,15 +204,8 @@ function page_close(): void {
 }
 
 // ── Route ─────────────────────────────────────────────────────────────────────
-// If setup.php is in a subdirectory of the web root (the normal install),
-// scan from the document root so web-root files (index.php, viewer.php etc.)
-// also get their placeholders replaced.
-$doc_root = realpath($_SERVER['DOCUMENT_ROOT'] ?? '');
-$self_dir = realpath(__DIR__);
-$base     = ($doc_root && $self_dir && $self_dir !== $doc_root && strpos($self_dir, $doc_root) === 0)
-            ? $doc_root
-            : $self_dir;
-// Config lives next to setup.php (in the scripts folder), not in the web root
+// Scan only the scripts folder — web root files no longer have placeholders.
+$base        = __DIR__;
 $CONFIG_FILE = __DIR__ . '/.setup-config.json';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
