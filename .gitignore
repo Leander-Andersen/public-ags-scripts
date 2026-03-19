@@ -1,0 +1,4 @@
+# Setup artefacts — never commit these
+.setup-config.json
+setup.lock
+*.bak

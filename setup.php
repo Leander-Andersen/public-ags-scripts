@@ -209,6 +209,16 @@ $target_files = find_target_files($base);
 if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
     // ── Apply ─────────────────────────────────────────────────────────────────
     $results = apply_changes($target_files, $replacements, $base);
+
+    // Save settings so update.php can re-apply them after a git pull
+    $config = [
+        'script_domain'  => $domain,
+        'script_folder'  => $folder,
+        'web_root'       => rtrim($webroot, '/'),
+        'configured_at'  => date('c'),
+    ];
+    file_put_contents($base . '/.setup-config.json', json_encode($config, JSON_PRETTY_PRINT));
+
     file_put_contents($LOCK_FILE, date('c'));
 
     page_open('Setup — Done');
