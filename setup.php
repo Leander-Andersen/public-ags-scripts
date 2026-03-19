@@ -1,6 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
 session_start();
 
 // ── Lock check ────────────────────────────────────────────────────────────────
@@ -38,7 +36,7 @@ const PLACEHOLDER_WEBROOT = '<WEB_ROOT>';
 // Recursively finds all text files that contain at least one placeholder.
 // Skips: setup.php itself, setup.lock, .bak files, .git/, and binary files.
 function find_target_files(string $base): array {
-    $skip_names = ['setup.php', 'setup.lock'];
+    $skip_names = ['setup.php', 'update.php', 'setup.lock'];
     $skip_dirs  = ['.git', '.github', '.vscode', 'node_modules'];
     $text_exts  = ['php', 'ps1', 'psm1', 'psd1', 'sh', 'bat', 'cmd', 'txt', 'md', 'json', 'xml', 'html', 'htm', 'css', 'js'];
     $placeholders = [PLACEHOLDER_DOMAIN, PLACEHOLDER_FOLDER, PLACEHOLDER_WEBROOT];
@@ -79,6 +77,40 @@ function find_target_files(string $base): array {
 
     sort($files);
     return $files;
+}
+
+// ── Permission check ─────────────────────────────────────────────────────────
+// Returns an HTML warning string if the web root isn't writable, null if fine.
+function permission_warning(string $base): ?string {
+    // Collect all directories that contain files we need to write
+    $dirs = [$base];
+    $iter = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($iter as $f) {
+        if ($f->isDir()) $dirs[] = $f->getPathname();
+    }
+    $not_writable = [];
+    foreach (array_unique($dirs) as $d) {
+        if (!is_writable($d)) $not_writable[] = $d;
+    }
+    if (empty($not_writable)) return null;
+
+    // Detect the web server user
+    $user = 'www-data';
+    if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
+        $info = posix_getpwuid(posix_geteuid());
+        if (!empty($info['name'])) $user = $info['name'];
+    }
+
+    $cmd = htmlspecialchars("sudo chown -R {$user}:{$user} {$base}");
+    return <<<HTML
+<div class="alert alert-danger">
+  <strong>Permission error — PHP cannot write to these files.</strong><br>
+  The repo is owned by a different user than the web server. Run this command on the server, then refresh:
+  <pre class="mt-2 mb-1 p-2 bg-light border rounded">{$cmd}</pre>
+</div>
+HTML;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -182,7 +214,9 @@ $base = __DIR__;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     page_open('Setup');
-    echo render_form('', '', '', [], $csrf);
+    $warn = permission_warning($base);
+    if ($warn) echo $warn;
+    else echo render_form('', '', '', [], $csrf);
     page_close();
     exit;
 }
@@ -241,6 +275,8 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
 $preview = get_preview($target_files, $replacements, $base);
 
 page_open('Setup — Preview');
+$warn = permission_warning($base);
+if ($warn) { echo $warn; page_close(); exit; }
 echo '<h5 class="mb-1">Review changes</h5>';
 echo '<p class="text-muted mb-3">Lines in <span class="text-danger fw-semibold">red</span> will be replaced with the <span class="text-success fw-semibold">green</span> version.</p>';
 
