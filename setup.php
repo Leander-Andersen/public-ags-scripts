@@ -210,7 +210,16 @@ function page_close(): void {
 }
 
 // ── Route ─────────────────────────────────────────────────────────────────────
-$base = __DIR__;
+// If setup.php is in a subdirectory of the web root (the normal install),
+// scan from the document root so web-root files (index.php, viewer.php etc.)
+// also get their placeholders replaced.
+$doc_root = realpath($_SERVER['DOCUMENT_ROOT'] ?? '');
+$self_dir = realpath(__DIR__);
+$base     = ($doc_root && $self_dir && $self_dir !== $doc_root && strpos($self_dir, $doc_root) === 0)
+            ? $doc_root
+            : $self_dir;
+// Config lives next to setup.php (in the scripts folder), not in the web root
+$CONFIG_FILE = __DIR__ . '/.setup-config.json';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     page_open('Setup');
@@ -253,7 +262,7 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
         'web_root'       => rtrim($webroot, '/'),
         'configured_at'  => date('c'),
     ];
-    file_put_contents($base . '/.setup-config.json', json_encode($config, JSON_PRETTY_PRINT));
+    file_put_contents($CONFIG_FILE, json_encode($config, JSON_PRETTY_PRINT));
 
     file_put_contents($LOCK_FILE, date('c'));
 

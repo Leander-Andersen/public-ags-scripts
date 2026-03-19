@@ -2,9 +2,16 @@
 session_start();
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
-$BASE        = __DIR__;
-$CONFIG_FILE = $BASE . '/.setup-config.json';
-$LOCK_FILE   = $BASE . '/setup.lock';
+// Scan from document root if we're in a subdirectory (normal install)
+$doc_root = realpath($_SERVER['DOCUMENT_ROOT'] ?? '');
+$self_dir = realpath(__DIR__);
+$BASE     = ($doc_root && $self_dir && $self_dir !== $doc_root && strpos($self_dir, $doc_root) === 0)
+            ? $doc_root
+            : $self_dir;
+
+// Config and lock always live next to update.php (scripts folder)
+$CONFIG_FILE = __DIR__ . '/.setup-config.json';
+$LOCK_FILE   = __DIR__ . '/setup.lock';
 
 // ── CSRF ──────────────────────────────────────────────────────────────────────
 if (empty($_SESSION['csrf_token'])) {
