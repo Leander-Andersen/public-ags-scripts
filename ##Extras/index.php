@@ -6,7 +6,7 @@ echo "<h2>Leander's skibidi skripter</h2>";
 $directory = getcwd();
 
 //require once the "globalVariables.php" file to import global variables
-require_once '<WEB_ROOT>/globalVariables.php';
+require_once __DIR__ . '/globalVariables.php';
 
 
 

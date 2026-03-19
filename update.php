@@ -20,9 +20,8 @@ if (empty($_SESSION['csrf_token'])) {
 $csrf = $_SESSION['csrf_token'];
 
 // ── Placeholders (must match setup.php) ───────────────────────────────────────
-const PLACEHOLDER_DOMAIN  = '<SCRIPT_DOMAIN>';
-const PLACEHOLDER_FOLDER  = '<SCRIPT_FOLDER>';
-const PLACEHOLDER_WEBROOT = '<WEB_ROOT>';
+const PLACEHOLDER_DOMAIN = '<SCRIPT_DOMAIN>';
+const PLACEHOLDER_FOLDER = '<SCRIPT_FOLDER>';
 
 // ── Git helper ────────────────────────────────────────────────────────────────
 // Runs a git command in $BASE, returns [stdout, stderr, exit_code].
@@ -45,7 +44,7 @@ function find_target_files(string $base): array {
     $skip_names  = ['setup.php', 'update.php', 'setup.lock'];
     $skip_dirs   = ['.git', '.github', '.vscode', 'node_modules'];
     $text_exts   = ['php', 'ps1', 'psm1', 'psd1', 'sh', 'bat', 'cmd', 'txt', 'md', 'json', 'xml', 'html', 'htm', 'css', 'js'];
-    $placeholders = [PLACEHOLDER_DOMAIN, PLACEHOLDER_FOLDER, PLACEHOLDER_WEBROOT];
+    $placeholders = [PLACEHOLDER_DOMAIN, PLACEHOLDER_FOLDER];
 
     $files = [];
     $iter  = new RecursiveIteratorIterator(
@@ -78,9 +77,8 @@ function find_target_files(string $base): array {
 
 function apply_settings(array $config, string $base): array {
     $replacements = [
-        PLACEHOLDER_DOMAIN  => $config['script_domain'],
-        PLACEHOLDER_FOLDER  => $config['script_folder'],
-        PLACEHOLDER_WEBROOT => rtrim($config['web_root'], '/'),
+        PLACEHOLDER_DOMAIN => $config['script_domain'],
+        PLACEHOLDER_FOLDER => $config['script_folder'],
     ];
     $files   = find_target_files($base);
     $results = [];

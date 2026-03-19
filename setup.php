@@ -26,11 +26,9 @@ $csrf = $_SESSION['csrf_token'];
 // Use these in any .ps1 or .php file — setup.php will replace them automatically.
 //   <SCRIPT_DOMAIN>  →  domain/subdomain the scripts are served from
 //   <SCRIPT_FOLDER>  →  folder name on the web server (repo root folder)
-//   <WEB_ROOT>       →  absolute server path to web root (e.g. /var/www/html)
 
 const PLACEHOLDER_DOMAIN = '<SCRIPT_DOMAIN>';
 const PLACEHOLDER_FOLDER = '<SCRIPT_FOLDER>';
-const PLACEHOLDER_WEBROOT = '<WEB_ROOT>';
 
 // ── File scanner ──────────────────────────────────────────────────────────────
 // Recursively finds all text files that contain at least one placeholder.
@@ -39,7 +37,7 @@ function find_target_files(string $base): array {
     $skip_names = ['setup.php', 'update.php', 'setup.lock'];
     $skip_dirs  = ['.git', '.github', '.vscode', 'node_modules'];
     $text_exts  = ['php', 'ps1', 'psm1', 'psd1', 'sh', 'bat', 'cmd', 'txt', 'md', 'json', 'xml', 'html', 'htm', 'css', 'js'];
-    $placeholders = [PLACEHOLDER_DOMAIN, PLACEHOLDER_FOLDER, PLACEHOLDER_WEBROOT];
+    $placeholders = [PLACEHOLDER_DOMAIN, PLACEHOLDER_FOLDER];
 
     $files = [];
     $iter  = new RecursiveIteratorIterator(
@@ -114,11 +112,10 @@ HTML;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function build_replacements(string $domain, string $folder, string $webroot): array {
+function build_replacements(string $domain, string $folder): array {
     return [
-        PLACEHOLDER_DOMAIN  => $domain,
-        PLACEHOLDER_FOLDER  => $folder,
-        PLACEHOLDER_WEBROOT => rtrim($webroot, '/'),
+        PLACEHOLDER_DOMAIN => $domain,
+        PLACEHOLDER_FOLDER => $folder,
     ];
 }
 
@@ -165,16 +162,13 @@ function apply_changes(array $files, array $replacements, string $base): array {
     return $results;
 }
 
-function validate(string $domain, string $folder, string $webroot): array {
+function validate(string $domain, string $folder): array {
     $errs = [];
     if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/', $domain)) {
         $errs[] = 'Script domain looks invalid (e.g. <code>script.yourdomain.com</code>).';
     }
     if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_\-]*$/', $folder)) {
         $errs[] = 'Folder name must be alphanumeric (hyphens/underscores allowed, no spaces).';
-    }
-    if (!preg_match('/^\//', $webroot)) {
-        $errs[] = 'Web root must be an absolute path starting with <code>/</code>.';
     }
     return $errs;
 }
@@ -201,7 +195,7 @@ function page_open(string $title): void {
 <body class="bg-light">
 <div class="container py-5" style="max-width:760px">
 <h2 class="mb-1">Script Library Setup</h2>
-<p class="text-muted mb-4">Replaces <code>&lt;SCRIPT_DOMAIN&gt;</code>, <code>&lt;SCRIPT_FOLDER&gt;</code>, and <code>&lt;WEB_ROOT&gt;</code> placeholders across all scripts.</p>
+<p class="text-muted mb-4">Replaces <code>&lt;SCRIPT_DOMAIN&gt;</code> and <code>&lt;SCRIPT_FOLDER&gt;</code> placeholders across all scripts.</p>
 HTML;
 }
 
@@ -225,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     page_open('Setup');
     $warn = permission_warning($base);
     if ($warn) echo $warn;
-    else echo render_form('', '', '', [], $csrf);
+    else echo render_form('', '', [], $csrf);
     page_close();
     exit;
 }
@@ -238,17 +232,16 @@ if (!isset($_POST['csrf_token']) || !hash_equals($csrf, $_POST['csrf_token'])) {
 
 $domain  = trim($_POST['script_domain'] ?? '');
 $folder  = trim($_POST['folder_name']   ?? '');
-$webroot = trim($_POST['web_root']      ?? '');
-$errors  = validate($domain, $folder, $webroot);
+$errors  = validate($domain, $folder);
 
 if ($errors) {
     page_open('Setup — Errors');
-    echo render_form($domain, $folder, $webroot, $errors, $csrf);
+    echo render_form($domain, $folder, $errors, $csrf);
     page_close();
     exit;
 }
 
-$replacements = build_replacements($domain, $folder, $webroot);
+$replacements = build_replacements($domain, $folder);
 $target_files = find_target_files($base);
 
 if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
@@ -259,7 +252,6 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
     $config = [
         'script_domain'  => $domain,
         'script_folder'  => $folder,
-        'web_root'       => rtrim($webroot, '/'),
         'configured_at'  => date('c'),
     ];
     file_put_contents($CONFIG_FILE, json_encode($config, JSON_PRETTY_PRINT));
@@ -320,7 +312,6 @@ if (empty($preview)) {
     echo '<input type="hidden" name="csrf_token"    value="' . htmlspecialchars($csrf)    . '">';
     echo '<input type="hidden" name="script_domain" value="' . htmlspecialchars($domain)  . '">';
     echo '<input type="hidden" name="folder_name"   value="' . htmlspecialchars($folder)  . '">';
-    echo '<input type="hidden" name="web_root"      value="' . htmlspecialchars($webroot) . '">';
     echo '<input type="hidden" name="confirm"        value="1">';
     echo '<button type="submit" class="btn btn-success me-2">Apply changes</button>';
     echo '<a href="setup.php" class="btn btn-outline-secondary">Back</a>';
@@ -330,10 +321,9 @@ if (empty($preview)) {
 page_close();
 
 // ── Form renderer ─────────────────────────────────────────────────────────────
-function render_form(string $domain, string $folder, string $webroot, array $errors, string $csrf): string {
+function render_form(string $domain, string $folder, array $errors, string $csrf): string {
     $d_val = htmlspecialchars($domain);
     $f_val = htmlspecialchars($folder);
-    $w_val = htmlspecialchars($webroot);
     $out   = '';
 
     if ($errors) {
@@ -358,13 +348,6 @@ function render_form(string $domain, string $folder, string $webroot, array $err
     <input class="form-control" id="folder_name" name="folder_name"
            placeholder="my-scripts" value="{$f_val}" required>
     <div class="form-text">Replaces <code>&lt;SCRIPT_FOLDER&gt;</code> in all scripts. Must match the actual folder name on the web server.</div>
-  </div>
-
-  <div class="mb-4">
-    <label class="form-label fw-semibold" for="web_root">Web root path</label>
-    <input class="form-control" id="web_root" name="web_root"
-           placeholder="/var/www/html" value="{$w_val}" required>
-    <div class="form-text">Replaces <code>&lt;WEB_ROOT&gt;</code> in PHP include paths.</div>
   </div>
 
   <button type="submit" class="btn btn-primary">Preview changes</button>
