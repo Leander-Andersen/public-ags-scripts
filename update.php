@@ -48,18 +48,18 @@ function find_target_files(string $base): array {
         if (!$file->isFile()) continue;
         $rel = str_replace('\\', '/', str_replace($base . DIRECTORY_SEPARATOR, '', $file->getPathname()));
         foreach ($skip_dirs as $d) {
-            if (str_starts_with($rel, $d . '/')) continue 2;
+            if (strpos($rel, $d . '/') === 0) continue 2;
         }
         $fname = $file->getFilename();
         if (in_array($fname, $skip_names)) continue;
-        if (str_ends_with($fname, '.bak')) continue;
-        if (str_ends_with($fname, '.setup-config.json')) continue;
+        if (substr($fname, -4) === '.bak') continue;
+        if ($fname === '.setup-config.json') continue;
         $ext = strtolower($file->getExtension());
         if (!in_array($ext, $text_exts)) continue;
 
         $content = file_get_contents($file->getPathname());
         foreach ($placeholders as $p) {
-            if (str_contains($content, $p)) {
+            if (strpos($content, $p) !== false) {
                 $files[] = $rel;
                 break;
             }
