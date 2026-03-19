@@ -7,9 +7,9 @@ param(
 
 # --- URLs for the remote installers (HTTPS only) ---
 $urls = @{
-    Brave   = 'https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetBraveDefault.ps1'
-    Chrome  = 'https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetChromeDefault.ps1'
-    Firefox = 'https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetFirefoxDefault.ps1'
+    Brave   = 'https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetBraveDefault.ps1'
+    Chrome  = 'https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetChromeDefault.ps1'
+    Firefox = 'https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetFirefoxDefault.ps1'
 }
 
 # --- Ensure TLS 1.2 for older stacks ---
