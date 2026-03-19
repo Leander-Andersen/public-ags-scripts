@@ -277,6 +277,19 @@ $preview = get_preview($target_files, $replacements, $base);
 page_open('Setup — Preview');
 $warn = permission_warning($base);
 if ($warn) { echo $warn; page_close(); exit; }
+
+// ── Debug panel ───────────────────────────────────────────────────────────────
+echo '<details class="mb-4"><summary class="text-muted" style="cursor:pointer">Debug info</summary>';
+echo '<div class="mt-2 p-3 bg-light border rounded" style="font-family:monospace;font-size:.8rem">';
+echo '<strong>Base path:</strong> ' . htmlspecialchars($base) . '<br>';
+echo '<strong>Replacements:</strong><br>';
+foreach ($replacements as $k => $v) {
+    echo '&nbsp;&nbsp;' . htmlspecialchars($k) . ' → ' . htmlspecialchars($v) . '<br>';
+}
+echo '<strong>Files scanned with placeholders (' . count($target_files) . '):</strong><br>';
+foreach ($target_files as $f) { echo '&nbsp;&nbsp;' . htmlspecialchars($f) . '<br>'; }
+echo '</div></details>';
+
 echo '<h5 class="mb-1">Review changes</h5>';
 echo '<p class="text-muted mb-3">Lines in <span class="text-danger fw-semibold">red</span> will be replaced with the <span class="text-success fw-semibold">green</span> version.</p>';
 
