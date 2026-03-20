@@ -2,3 +2,4 @@
 .setup-config.json
 setup.lock
 *.bak
+*.log

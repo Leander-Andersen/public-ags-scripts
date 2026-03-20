@@ -90,6 +90,8 @@ done
 # ── Set ownership ─────────────────────────────────────────────────────────────
 echo "[3/4] Setting ownership to $WEB_USER..."
 chown -R "$WEB_USER":"$WEB_USER" "$DEST"
+# Chown the web root dir itself (not recursively) so PHP can rename the scripts folder inside it
+chown "$WEB_USER":"$WEB_USER" "$WEBROOT"
 for f in index.php viewer.php globalVariables.php; do
     [[ -f "$WEBROOT/$f" ]] && chown "$WEB_USER":"$WEB_USER" "$WEBROOT/$f"
 done
