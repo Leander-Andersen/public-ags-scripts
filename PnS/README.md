@@ -1,11 +1,14 @@
-# PnS   | Product and Serial
-## A small script to retrieve both the serial number and product number of laptops (sometimes required to do a warranty check on HP computers)
+# PnS — Product and Serial
 
-To use, paste the following command into PowerShell:
+Retrieves the serial number and product number of a laptop. Useful for HP warranty checks.
+
+## Usage
+Paste the following command into PowerShell:
 ```powershell
-iwr -useb http://script.isame12.no/public-ags-scripts/PnS/PnS.ps1 | iex
+iwr -useb https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/PnS/PnS.ps1 | iex
 ```
-If script execution is disabled, run PowerShell as Administrator or enter: 
+
+If script execution is disabled, run PowerShell as Administrator or enter:
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Unrestricted
 ```

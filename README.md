@@ -1,12 +1,26 @@
-# public ags scripts
+# Script Library
 
-Some small scripts I have created to make life easier at work.
+A collection of PowerShell and web scripts to make IT work easier.
 
-How repos goes:
-main: This is where finished features work
-Experimental: This is where new features Should\* work
-Branches with the name of a function: This is where features that Is currently being worked on lives
+## Branch structure
+- `main` — finished, stable features
+- `Experimental` — new features that *should* work
+- Feature branches — work in progress
 
-# How to use: 
-It is expected to be run from a webserver. Put the Extras at the root of the web-server. Then make a folder with the contents of this repo. (Currently you will have to call this folder "public-ags-scripts")
-You wil have to manualy edit all the scripts to pointing at your domain/ip address of webserver (I am working on making this automatic)
+## Deploying to a web server
+
+Run this one-liner on your server (requires git, curl, sudo):
+
+```bash
+curl -s https://raw.githubusercontent.com/Leander-Andersen/public-ags-scripts/main/install.sh | bash -s -- --webroot /var/www/html --scripts-folder <SCRIPT_FOLDER>
+```
+
+Then open `https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/setup.php` in a browser, enter your domain and folder name, and the setup script will rewrite all URLs automatically.
+
+## Script URLs after setup
+
+```
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/Hextract/Hextract.ps1
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/PnS/PnS.ps1
+```

@@ -1,13 +1,17 @@
-# This script generates a hardware hash from the command line.
+# Hextract — Hardware Hash Generator
+
+Generates a hardware hash for Windows Autopilot enrollment from the command line.
+
 ## Usage
-To run, paste the following command into PowerShell:
+Paste the following command into PowerShell:
 ```powershell
-iwr -useb http://script.isame12.no/public-ags-scripts/Hextract/Hextract.ps1 | iex
- ```
+iwr -useb https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/Hextract/Hextract.ps1 | iex
+```
+
 If script execution is disabled, run PowerShell as Administrator or enter:
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Unrestricted
- ```
+```
 to allow unrestricted execution for this terminal session.
 
-Output will be saved to: C:\HWID\
+Output will be saved to: `C:\HWID\`
