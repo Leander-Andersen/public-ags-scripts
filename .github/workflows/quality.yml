@@ -1,0 +1,39 @@
+name: Quality checks
+
+on:
+  push:
+    branches: [ "main", "experimental", "feature/**" ]
+  pull_request:
+    branches: [ "main", "experimental" ]
+
+jobs:
+  php-lint:
+    name: PHP syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: Check all PHP files for syntax errors
+        run: |
+          ERRORS=0
+          while IFS= read -r -d '' file; do
+            php -l "$file" || ERRORS=1
+          done < <(find . -name "*.php" -not -path "./.git/*" -print0)
+          exit $ERRORS
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck on install.sh
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: warning

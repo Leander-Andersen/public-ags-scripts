@@ -1,0 +1,24 @@
+name: Placeholder check
+
+on:
+  push:
+    branches: [ "main", "experimental", "feature/**" ]
+  pull_request:
+    branches: [ "main", "experimental" ]
+
+jobs:
+  check:
+    name: No hardcoded values
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded domain in PS1 and Markdown files
+        run: |
+          FOUND=$(grep -rl "script\.isame12\.no" --include="*.ps1" --include="*.md" . || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Hardcoded domain 'script.isame12.no' found — use <SCRIPT_DOMAIN> instead:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "No hardcoded domain found."
