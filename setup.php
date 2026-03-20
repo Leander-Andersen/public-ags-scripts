@@ -81,37 +81,35 @@ function find_target_files(string $base): array {
 }
 
 // ── Permission check ─────────────────────────────────────────────────────────
-// Returns an HTML warning string if the web root isn't writable, null if fine.
+// Returns an HTML warning string if permissions aren't right, null if fine.
 function permission_warning(string $base): ?string {
-    // Collect all directories that contain files we need to write
-    $dirs = [$base];
-    $iter = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS)
-    );
-    foreach ($iter as $f) {
-        if ($f->isDir()) $dirs[] = $f->getPathname();
-    }
-    $not_writable = [];
-    foreach (array_unique($dirs) as $d) {
-        if (!is_writable($d)) $not_writable[] = $d;
-    }
-    if (empty($not_writable)) return null;
-
-    // Detect the web server user
     $user = 'www-data';
     if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
         $info = posix_getpwuid(posix_geteuid());
         if (!empty($info['name'])) $user = $info['name'];
     }
 
-    $cmd = htmlspecialchars("sudo chown -R {$user}:{$user} {$base}");
-    return <<<HTML
-<div class="alert alert-danger">
-  <strong>Permission error — PHP cannot write to these files.</strong><br>
-  The repo is owned by a different user than the web server. Run this command on the server, then refresh:
-  <pre class="mt-2 mb-1 p-2 bg-light border rounded">{$cmd}</pre>
-</div>
-HTML;
+    $warnings = [];
+
+    // Check scripts folder is writable (needed to rewrite files)
+    if (!is_writable($base)) {
+        $cmd = htmlspecialchars("sudo chown -R {$user}:{$user} {$base}");
+        $warnings[] = "Scripts folder not writable — run: <pre class=\"mt-1 mb-0 p-2 bg-light border rounded\">{$cmd}</pre>";
+    }
+
+    // Check parent directory is writable (needed to rename the folder)
+    $parent = dirname($base);
+    if (!is_writable($parent)) {
+        $cmd = htmlspecialchars("sudo chown {$user}:{$user} {$parent}");
+        $warnings[] = "Web root directory not writable (needed to rename the scripts folder) — run: <pre class=\"mt-1 mb-0 p-2 bg-light border rounded\">{$cmd}</pre>";
+    }
+
+    if (empty($warnings)) return null;
+
+    $html = '<div class="alert alert-danger"><strong>Permission error</strong><ul class="mb-0 mt-2">';
+    foreach ($warnings as $w) $html .= "<li class=\"mb-2\">{$w}</li>";
+    $html .= '</ul></div>';
+    return $html;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
