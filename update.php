@@ -166,8 +166,20 @@ if (!$config || empty($config['script_domain'])) {
 // ── GET: status dashboard ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     [$branch, $_err, $bc] = git('symbolic-ref', '--short', 'HEAD');
-    if ($bc !== 0) $branch = 'unknown';
-    [$commit, ,]    = git('log', '-1', '--format=%h %s (%ar)');
+    if ($bc !== 0) $branch = 'main';
+    [$commit, ,] = git('log', '-1', '--format=%h %s (%ar)');
+
+    // Fetch remote branch list
+    git('fetch', '--prune', 'origin');
+    [$branchList, ,] = git('branch', '-r', '--format=%(refname:short)');
+    $remote_branches = array_filter(array_map(function($b) {
+        $b = trim($b);
+        // Strip "origin/" prefix and skip HEAD pointer
+        if (strpos($b, 'origin/HEAD') !== false) return null;
+        return preg_replace('/^origin\//', '', $b);
+    }, explode("\n", $branchList)));
+    $remote_branches = array_values(array_unique(array_filter($remote_branches)));
+    if (empty($remote_branches)) $remote_branches = [$branch];
 
     page_open('Updater');
 
@@ -177,13 +189,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo '<tr><th style="width:160px">Script domain</th><td><code>' . htmlspecialchars($config['script_domain']) . '</code></td></tr>';
     echo '<tr><th>Script folder</th><td><code>' . htmlspecialchars($config['script_folder']) . '</code></td></tr>';
     echo '<tr><th>Configured on</th><td>' . htmlspecialchars($config['configured_at']) . '</td></tr>';
-    echo '<tr><th>Branch</th><td><code>' . htmlspecialchars($branch) . '</code></td></tr>';
+    echo '<tr><th>Active branch</th><td><code>' . htmlspecialchars($branch) . '</code></td></tr>';
     echo '<tr><th>Current commit</th><td><code>' . htmlspecialchars($commit ?: '—') . '</code></td></tr>';
     echo '</table></div></div>';
 
     echo '<form method="post">';
     echo '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($csrf) . '">';
     echo '<input type="hidden" name="action"     value="check">';
+    echo '<div class="mb-3">';
+    echo '<label class="form-label fw-semibold" for="branch">Branch to update from</label>';
+    echo '<select class="form-select" id="branch" name="branch">';
+    foreach ($remote_branches as $b) {
+        $sel = ($b === $branch) ? ' selected' : '';
+        echo '<option value="' . htmlspecialchars($b) . '"' . $sel . '>' . htmlspecialchars($b) . '</option>';
+    }
+    echo '</select></div>';
     echo '<button type="submit" class="btn btn-primary">Check for updates</button>';
     echo '<a href="setup.php" class="btn btn-outline-secondary ms-2">Back to setup</a>';
     echo '</form>';
@@ -202,8 +222,11 @@ $action = $_POST['action'] ?? '';
 
 // ── POST action=check: fetch + show incoming commits ──────────────────────────
 if ($action === 'check') {
-    [$branch, $_err, $bc] = git('symbolic-ref', '--short', 'HEAD');
-    if ($bc !== 0 || !$branch) $branch = 'main';
+    $branch = preg_replace('/[^a-zA-Z0-9_.\-\/]/', '', $_POST['branch'] ?? '');
+    if (empty($branch)) {
+        [$branch, $_err, $bc] = git('symbolic-ref', '--short', 'HEAD');
+        if ($bc !== 0 || !$branch) $branch = 'main';
+    }
 
     [$_out, $fetchErr, $fetchCode] = git('fetch', 'origin');
 
