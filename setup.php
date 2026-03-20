@@ -248,8 +248,15 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
         'configured_at'  => date('c'),
     ];
     file_put_contents($CONFIG_FILE, json_encode($config, JSON_PRETTY_PRINT));
-
     file_put_contents($LOCK_FILE, date('c'));
+
+    // Rename the scripts folder on disk to match what the user chose
+    $current_name = basename(__DIR__);
+    $rename_ok    = null;
+    if ($current_name !== $folder) {
+        $new_path  = dirname(__DIR__) . '/' . $folder;
+        $rename_ok = rename(__DIR__, $new_path);
+    }
 
     page_open('Setup — Done');
     echo '<h5 class="mb-3">Changes applied</h5>';
@@ -259,8 +266,14 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
         $cls  = match($r['status']) { 'ok' => 'list-group-item-success', 'err' => 'list-group-item-danger', 'skip' => 'list-group-item-warning', default => '' };
         echo "<li class=\"list-group-item {$cls}\"><code>{$r['file']}</code> {$icon} — {$r['msg']}</li>";
     }
+    if ($rename_ok === true) {
+        echo "<li class=\"list-group-item list-group-item-success\">Folder renamed: <code>{$current_name}</code> → <code>" . htmlspecialchars($folder) . "</code> ✅</li>";
+    } elseif ($rename_ok === false) {
+        echo "<li class=\"list-group-item list-group-item-warning\">Could not rename folder automatically — please rename <code>{$current_name}</code> to <code>" . htmlspecialchars($folder) . "</code> manually.</li>";
+    }
     echo '</ul>';
-    echo '<div class="alert alert-success"><strong>Setup complete.</strong> A <code>setup.lock</code> file has been created — setup.php will refuse to run again until you delete it. Consider deleting <code>setup.php</code> from the server as well.</div>';
+    $new_url = 'https://' . htmlspecialchars($domain) . '/' . htmlspecialchars($folder) . '/';
+    echo "<div class=\"alert alert-success\"><strong>Setup complete.</strong> Your scripts are now live at <a href=\"{$new_url}\">{$new_url}</a></div>";
     page_close();
     exit;
 }
