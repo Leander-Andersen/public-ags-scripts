@@ -163,6 +163,20 @@ function apply_changes(array $files, array $replacements, string $base): array {
     return $results;
 }
 
+function cleanup_bak_files(string $base): int {
+    $count = 0;
+    $iter  = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($iter as $file) {
+        if ($file->isFile() && substr($file->getFilename(), -4) === '.bak') {
+            unlink($file->getPathname());
+            $count++;
+        }
+    }
+    return $count;
+}
+
 function validate(string $domain, string $folder): array {
     $errs = [];
     if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/', $domain)) {
@@ -250,6 +264,9 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
     ];
     file_put_contents($CONFIG_FILE, json_encode($config, JSON_PRETTY_PRINT));
     file_put_contents($LOCK_FILE, date('c'));
+
+    // Remove .bak files left by apply_changes()
+    cleanup_bak_files($base);
 
     // Rename the scripts folder on disk to match what the user chose
     $current_name = basename(__DIR__);

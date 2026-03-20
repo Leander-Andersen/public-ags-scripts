@@ -1,4 +1,7 @@
 <?php
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . '/php-errors.log');
+
 session_start();
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -66,6 +69,17 @@ function find_target_files(string $base): array {
     }
     sort($files);
     return $files;
+}
+
+function cleanup_bak_files(string $base): void {
+    $iter = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($iter as $file) {
+        if ($file->isFile() && substr($file->getFilename(), -4) === '.bak') {
+            unlink($file->getPathname());
+        }
+    }
 }
 
 function apply_settings(array $config, string $base): array {
@@ -162,7 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo '<table class="table table-sm table-bordered mb-0">';
     echo '<tr><th style="width:160px">Script domain</th><td><code>' . htmlspecialchars($config['script_domain']) . '</code></td></tr>';
     echo '<tr><th>Script folder</th><td><code>' . htmlspecialchars($config['script_folder']) . '</code></td></tr>';
-    echo '<tr><th>Web root</th><td><code>' . htmlspecialchars($config['web_root']) . '</code></td></tr>';
     echo '<tr><th>Configured on</th><td>' . htmlspecialchars($config['configured_at']) . '</td></tr>';
     echo '<tr><th>Branch</th><td><code>' . htmlspecialchars($branch) . '</code></td></tr>';
     echo '<tr><th>Current commit</th><td><code>' . htmlspecialchars($commit ?: '—') . '</code></td></tr>';
@@ -247,8 +260,9 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     // 2. Re-read config (in case update.php itself was updated — config is gitignored so it survived)
     $config = json_decode(file_get_contents($CONFIG_FILE), true);
 
-    // 3. Re-apply settings
+    // 3. Re-apply settings and clean up any .bak files
     $results = apply_settings($config, $BASE);
+    cleanup_bak_files($BASE);
 
     echo '<h5 class="mt-3 mb-2">Settings re-applied</h5>';
     echo '<ul class="list-group mb-4">';

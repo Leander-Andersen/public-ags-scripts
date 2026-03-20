@@ -17,6 +17,13 @@ curl -s https://raw.githubusercontent.com/Leander-Andersen/public-ags-scripts/ma
 
 Then open `https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/setup.php` in a browser, enter your domain and folder name, and the setup script will rewrite all URLs automatically.
 
+## Updating after initial setup
+
+Once set up, visit `https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/update.php` to pull the latest scripts from git. The updater will:
+1. Pull the latest commits from the repo
+2. Automatically re-apply your saved domain and folder settings
+3. No need to run setup.php again — your configuration is preserved
+
 ## Script URLs after setup
 
 ```
