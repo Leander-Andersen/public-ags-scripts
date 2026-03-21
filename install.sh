@@ -86,6 +86,10 @@ for f in index.php viewer.php globalVariables.php; do
         echo "      → $WEBROOT/$f"
     fi
 done
+if [[ -d "$EXTRAS/svg" ]]; then
+    cp -r "$EXTRAS/svg" "$WEBROOT/svg"
+    echo "      → $WEBROOT/svg/"
+fi
 
 # ── Set ownership ─────────────────────────────────────────────────────────────
 echo "[3/4] Setting ownership to $WEB_USER..."
@@ -95,6 +99,7 @@ chown "$WEB_USER":"$WEB_USER" "$WEBROOT"
 for f in index.php viewer.php globalVariables.php; do
     [[ -f "$WEBROOT/$f" ]] && chown "$WEB_USER":"$WEB_USER" "$WEBROOT/$f"
 done
+[[ -d "$WEBROOT/svg" ]] && chown -R "$WEB_USER":"$WEB_USER" "$WEBROOT/svg"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo "[4/4] Done!"

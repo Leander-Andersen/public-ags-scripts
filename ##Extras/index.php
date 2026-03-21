@@ -44,6 +44,28 @@ foreach ($scanned_directory as $file) {
     }
 }
 
+// Build background character HTML (OverPinku mode only — shown/hidden via CSS)
+$bg_chars_html = '';
+$svg_dir = __DIR__ . '/svg';
+if (is_dir($svg_dir)) {
+    $svg_files = glob($svg_dir . '/*.svg');
+    if (!empty($svg_files)) {
+        shuffle($svg_files);
+        $count  = min(3, count($svg_files));
+        $picked = array_slice($svg_files, 0, $count);
+        $slot_sets = [
+            1 => ['right:2vw;bottom:0'],
+            2 => ['left:2vw;bottom:0', 'right:2vw;bottom:0'],
+            3 => ['left:2vw;bottom:0', 'left:50%;bottom:0;transform:translateX(-50%)', 'right:2vw;bottom:0'],
+        ];
+        $slots = $slot_sets[$count];
+        foreach ($picked as $i => $path) {
+            $url = 'svg/' . rawurlencode(basename($path));
+            $bg_chars_html .= '<img class="bg-char" src="' . $url . '" style="' . $slots[$i] . '" alt="" aria-hidden="true">';
+        }
+    }
+}
+
 function formatSizeUnits($bytes)
 {
     if ($bytes >= 1073741824)      { return number_format($bytes / 1073741824, 2) . ' GB'; }
@@ -135,6 +157,27 @@ function formatSizeUnits($bytes)
         /* ── Layout ─────────────────────────────────────── */
         .container {
             padding: 28px max(40px, 4vw);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Background characters (OverPinku only) ─────── */
+        .bg-char {
+            position: fixed;
+            bottom: 0;
+            height: 42vh;
+            max-height: 440px;
+            min-height: 180px;
+            width: auto;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 0;
+            transition: opacity 0.8s ease;
+            filter: drop-shadow(0 4px 24px rgba(255, 105, 180, 0.25));
+        }
+
+        [data-theme="overpinku"] .bg-char {
+            opacity: 0.18;
         }
 
         .page-title {
@@ -319,6 +362,7 @@ function formatSizeUnits($bytes)
 </head>
 
 <body>
+    <?php echo $bg_chars_html; ?>
     <div class="container">
         <h2 class="page-title">Leander's skibidi skripter</h2>
 
