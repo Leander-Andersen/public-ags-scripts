@@ -5,13 +5,31 @@ require_once __DIR__ . '/globalVariables.php';
 
 $directory = getcwd();
 $scanned_directory = array_diff(scandir($directory), $ignore);
+$docroot = realpath($_SERVER['DOCUMENT_ROOT']);
+$scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host    = $_SERVER['HTTP_HOST'];
 
-// Build parent directory link
-$parent_link_html = '';
-if (realpath($directory) !== realpath($_SERVER['DOCUMENT_ROOT'])) {
-    $parent_link_html = '<a class="top-link" href="../">'
-        . '<span id="PD" class="material-symbols-outlined">arrow_back</span>'
-        . 'Parent Directory</a>';
+// Build breadcrumb
+$breadcrumb_html = '';
+$curReal = realpath($directory);
+if ($curReal !== $docroot) {
+    $relDir = ltrim(str_replace($docroot, '', $curReal), '/\\');
+    $relDir = str_replace('\\', '/', $relDir);
+    $parts  = array_values(array_filter(explode('/', $relDir)));
+    $crumb  = '<nav class="breadcrumb">'
+            . '<a href="/"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">home</span></a>';
+    $path = '';
+    foreach ($parts as $i => $part) {
+        $path .= '/' . $part;
+        $crumb .= '<span class="bc-sep">›</span>';
+        if ($i === array_key_last($parts)) {
+            $crumb .= '<span class="bc-current">' . htmlspecialchars($part) . '</span>';
+        } else {
+            $crumb .= '<a href="' . htmlspecialchars($path) . '/">' . htmlspecialchars($part) . '</a>';
+        }
+    }
+    $crumb .= '</nav>';
+    $breadcrumb_html = $crumb;
 }
 
 // Build file/folder list
@@ -24,10 +42,10 @@ foreach ($scanned_directory as $file) {
             . '</li>';
     } else {
         $filesize = filesize($file);
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $mtime    = filemtime($file);
+        $ext      = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
         $fullPath = realpath($directory . DIRECTORY_SEPARATOR . $file);
-        $docroot  = realpath($_SERVER['DOCUMENT_ROOT']);
         $relPath  = ltrim(str_replace($docroot, '', $fullPath), '/');
 
         if (in_array($ext, ['md', 'markdown'])) {
@@ -36,10 +54,18 @@ foreach ($scanned_directory as $file) {
             $href = '/' . $relPath;
         }
 
+        $fullUrl = $scheme . '://' . $host . $href;
+
         $items_html .= '<li>'
             . '<span class="material-symbols-outlined fileIcon">draft</span>'
             . '<a href="' . $href . '">' . $file . '</a>'
-            . '<span class="file-size">' . formatSizeUnits($filesize) . '</span>'
+            . '<span class="file-meta">'
+            .   '<span class="file-mtime">' . date('Y-m-d', $mtime) . '</span>'
+            .   '<span class="file-size">' . formatSizeUnits($filesize) . '</span>'
+            . '</span>'
+            . '<button class="copy-btn" data-url="' . htmlspecialchars($fullUrl) . '" title="Copy URL" aria-label="Copy URL">'
+            .   '<span class="material-symbols-outlined">content_copy</span>'
+            . '</button>'
             . '</li>';
     }
 }
@@ -191,12 +217,96 @@ function formatSizeUnits($bytes)
             color: var(--muted);
         }
 
-        .file-size {
+        /* ── File meta (date + size) ────────────────────── */
+        .file-meta {
             margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .file-mtime {
+            font-size: 0.75rem;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .file-size {
             font-size: 0.8rem;
             color: var(--muted);
             white-space: nowrap;
         }
+
+        /* ── Copy button ─────────────────────────────────── */
+        .copy-btn {
+            background: transparent;
+            border: none;
+            padding: 2px 4px;
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            opacity: 0;
+            flex-shrink: 0;
+            transition: opacity 0.15s, color 0.15s;
+        }
+
+        li:hover .copy-btn { opacity: 1; }
+        .copy-btn:hover    { color: var(--text); }
+
+        .copy-btn .material-symbols-outlined { font-size: 16px; }
+
+        .copy-btn.copied { color: #4caf50; opacity: 1; }
+
+        /* ── Filter box ──────────────────────────────────── */
+        .filter-box {
+            width: 100%;
+            max-width: 380px;
+            padding: 7px 12px;
+            margin-bottom: 12px;
+            background: rgba(128, 128, 128, 0.08);
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 300;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .filter-box::placeholder { color: var(--muted); }
+        .filter-box:focus        { border-color: rgba(128, 128, 128, 0.4); }
+
+        [data-theme="overpinku"] .filter-box {
+            background: rgba(255, 20, 147, 0.04);
+            border-color: rgba(255, 20, 147, 0.2);
+        }
+        [data-theme="overpinku"] .filter-box:focus {
+            border-color: rgba(255, 20, 147, 0.45);
+        }
+
+        /* ── Breadcrumb ──────────────────────────────────── */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.88rem;
+        }
+
+        .breadcrumb a:hover { color: var(--text); text-decoration: underline; }
+
+        .bc-sep     { color: var(--muted); font-size: 0.8rem; }
+        .bc-current { color: var(--text);  font-size: 0.88rem; }
 
         /* ── Icons ──────────────────────────────────────── */
         .folderIcon { color: purple; }
@@ -294,7 +404,44 @@ function formatSizeUnits($bytes)
             background-size: 22px 22px;
         }
 
-        [data-theme="overpinku"] .page-title { color: #e91e8c; }
+        /* ── OverPinku: shimmer title ────────────────────── */
+        [data-theme="overpinku"] .page-title {
+            background: linear-gradient(90deg, #e91e8c, #ff69b4, #ff1493, #ff85c2, #e91e8c);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: title-shimmer 4s linear infinite;
+        }
+
+        @keyframes title-shimmer {
+            0%   { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* ── OverPinku: heart cursor ─────────────────────── */
+        [data-theme="overpinku"],
+        [data-theme="overpinku"] * {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%23e91e8c' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E") 10 10, auto;
+        }
+
+        /* ── OverPinku: sakura petals ────────────────────── */
+        .sakura-petal {
+            position: fixed;
+            top: -30px;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+            animation: sakura-fall linear infinite;
+        }
+
+        @keyframes sakura-fall {
+            0%   { transform: translateY(0)    rotate(0deg)   translateX(0);    }
+            25%  { transform: translateY(25vh)  rotate(90deg)  translateX(18px);  }
+            50%  { transform: translateY(50vh)  rotate(180deg) translateX(-12px); }
+            75%  { transform: translateY(75vh)  rotate(270deg) translateX(14px);  }
+            100% { transform: translateY(110vh) rotate(360deg) translateX(0);    }
+        }
 
         [data-theme="overpinku"] ::selection { background: rgba(255, 20, 147, 0.25); color: #5c1a3a; }
 
@@ -322,9 +469,11 @@ function formatSizeUnits($bytes)
     <div class="container">
         <h2 class="page-title">Leander's skibidi skripter</h2>
 
-        <?php echo $parent_link_html; ?>
+        <?php echo $breadcrumb_html; ?>
 
-        <ul>
+        <input class="filter-box" type="search" id="filter" placeholder="Filter…" autocomplete="off" aria-label="Filter files">
+
+        <ul id="file-list">
             <?php echo $items_html; ?>
         </ul>
     </div>
@@ -346,25 +495,82 @@ function formatSizeUnits($bytes)
             var LABEL = {dark: 'Light', light: 'OverPinku', overpinku: 'Dark'};
             var ICON  = {dark: 'dark_mode', light: 'light_mode', overpinku: 'favorite'};
 
+            // ── Sakura petals ──────────────────────────────────
+            var _petals = [];
+            var _petalChars  = ['✿', '❀', '✾', '❁'];
+            var _petalColors = ['#ffb3d9', '#ff85c2', '#ff69b4', '#ffcce6', '#ffd6e0'];
+
+            function spawnPetals() {
+                clearPetals();
+                if (document.documentElement.dataset.theme !== 'overpinku') return;
+                for (var i = 0; i < 18; i++) (function() {
+                    var el  = document.createElement('span');
+                    el.className = 'sakura-petal';
+                    el.textContent = _petalChars[Math.floor(Math.random() * _petalChars.length)];
+                    var sz  = 10 + Math.random() * 10;
+                    var dur = 7 + Math.random() * 8;
+                    el.style.cssText = 'left:' + (Math.random() * 100) + 'vw;'
+                        + 'font-size:' + sz + 'px;'
+                        + 'color:' + _petalColors[Math.floor(Math.random() * _petalColors.length)] + ';'
+                        + 'opacity:' + (0.35 + Math.random() * 0.4) + ';'
+                        + 'animation-duration:' + dur + 's;'
+                        + 'animation-delay:' + (Math.random() * -dur) + 's;';
+                    document.body.appendChild(el);
+                    _petals.push(el);
+                })();
+            }
+
+            function clearPetals() {
+                _petals.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+                _petals = [];
+            }
+
             function applyTheme(t, save) {
                 document.documentElement.dataset.theme = t;
                 document.getElementById('theme-icon').textContent  = ICON[t]  || 'dark_mode';
                 document.getElementById('theme-label').textContent = LABEL[t] || 'Light';
                 if (save) localStorage.setItem('theme', t);
+                spawnPetals();
             }
 
             window.toggleTheme = function () {
                 applyTheme(NEXT[document.documentElement.dataset.theme] || 'light', true);
             };
 
-            // Sync button state with whatever the inline script set
             var saved = localStorage.getItem('theme') || 'dark';
             applyTheme(saved, false);
+
+            // ── Copy URL buttons ───────────────────────────────
+            document.addEventListener('click', function(e) {
+                var btn = e.target.closest('.copy-btn');
+                if (!btn) return;
+                e.stopPropagation();
+                var url = btn.dataset.url;
+                var icon = btn.querySelector('.material-symbols-outlined');
+                navigator.clipboard.writeText(url).then(function() {
+                    btn.classList.add('copied');
+                    icon.textContent = 'check';
+                    setTimeout(function() {
+                        btn.classList.remove('copied');
+                        icon.textContent = 'content_copy';
+                    }, 1500);
+                });
+            });
+
+            // ── Filter ────────────────────────────────────────
+            document.getElementById('filter').addEventListener('input', function() {
+                var q = this.value.toLowerCase();
+                document.querySelectorAll('#file-list li').forEach(function(li) {
+                    var a = li.querySelector('a');
+                    li.style.display = (!a || a.textContent.toLowerCase().includes(q)) ? '' : 'none';
+                });
+            });
 
             // ── OverPinku: hearts on click ─────────────────────
             var _ph = ['♥', '♥', '♥', '♡', '❤'];
             var _pc = ['#ff69b4', '#ff1493', '#e91e8c', '#ff85c2', '#c2185b', '#ffb3d9'];
             document.addEventListener('click', function(e) {
+                if (e.target.closest('.copy-btn')) return;
                 if (document.documentElement.dataset.theme !== 'overpinku') return;
                 var n = 7 + Math.floor(Math.random() * 5);
                 for (var i = 0; i < n; i++) (function() {
@@ -387,12 +593,18 @@ function formatSizeUnits($bytes)
                     }); });
                     setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, (dur + 0.2) * 1000);
                 })();
-                // Delay same-origin navigation so burst stays visible
                 var lnk = e.target.closest('a[href]');
                 if (!lnk || lnk.target || e.ctrlKey || e.metaKey || e.shiftKey || lnk.download) return;
                 try { if (new URL(lnk.href).origin !== window.location.origin) return; } catch (_) { return; }
                 e.preventDefault();
                 setTimeout(function() { window.location.href = lnk.href; }, 350);
+            });
+
+            // ── Konami code → OverPinku ────────────────────────
+            var _kc = [38,38,40,40,37,39,37,39,66,65], _ki = 0;
+            document.addEventListener('keydown', function(e) {
+                _ki = (e.keyCode === _kc[_ki]) ? _ki + 1 : 0;
+                if (_ki === _kc.length) { _ki = 0; applyTheme('overpinku', true); }
             });
         })();
     </script>
