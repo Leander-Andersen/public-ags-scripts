@@ -107,10 +107,10 @@ function formatSizeUnits($bytes)
         }
 
         [data-theme="overpinku"] {
-            --bg:    #1a0012;
-            --text:  #fff0f5;
-            --muted: #ff9dc8;
-            --hover: rgba(255, 105, 180, 0.15);
+            --bg:    #fff0f5;
+            --text:  #5c1a3a;
+            --muted: #b05070;
+            --hover: rgba(255, 20, 147, 0.12);
         }
 
         /* ── Base ───────────────────────────────────────── */
@@ -205,8 +205,8 @@ function formatSizeUnits($bytes)
         [data-theme="light"] .folderIcon { color: #6f42c1; }
         [data-theme="light"] .fileIcon   { color: #d63384; }
 
-        [data-theme="overpinku"] .folderIcon { color: #ff1493; }
-        [data-theme="overpinku"] .fileIcon   { color: #ffb3d9; }
+        [data-theme="overpinku"] .folderIcon { color: #e91e8c; }
+        [data-theme="overpinku"] .fileIcon   { color: #9c27b0; }
 
         #PD { font-size: small; }
 
@@ -238,13 +238,74 @@ function formatSizeUnits($bytes)
             background: rgba(128, 128, 128, 0.25);
         }
 
+        /* ── GitHub link button ─────────────────────────── */
+        .gh-link {
+            position: fixed;
+            top: 56px;
+            right: 16px;
+            background: rgba(128, 128, 128, 0.15);
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+            text-decoration: none;
+            transition: background-color 0.15s;
+        }
+
+        .gh-link:hover {
+            background: rgba(128, 128, 128, 0.25);
+            text-decoration: none;
+            color: var(--muted);
+        }
+
+        [data-theme="overpinku"] .gh-link {
+            background: rgba(255, 20, 147, 0.12);
+            border-color: rgba(255, 20, 147, 0.3);
+            color: #5c1a3a;
+        }
+
+        [data-theme="overpinku"] .gh-link:hover {
+            background: rgba(255, 20, 147, 0.22);
+            color: #5c1a3a;
+        }
+
         [data-theme="overpinku"] .theme-toggle {
-            background: rgba(255, 105, 180, 0.2);
-            border-color: rgba(255, 105, 180, 0.4);
+            background: rgba(255, 20, 147, 0.12);
+            border-color: rgba(255, 20, 147, 0.3);
+            color: #5c1a3a;
+            animation: pinku-heartbeat 2.5s ease-in-out infinite;
         }
 
         [data-theme="overpinku"] .theme-toggle:hover {
-            background: rgba(255, 105, 180, 0.35);
+            background: rgba(255, 20, 147, 0.22);
+        }
+
+        /* ── OverPinku extras ───────────────────────────── */
+        html[data-theme="overpinku"],
+        html[data-theme="overpinku"] body {
+            background-image: radial-gradient(circle, rgba(255, 105, 180, 0.22) 1.5px, transparent 1.5px);
+            background-size: 22px 22px;
+        }
+
+        [data-theme="overpinku"] .page-title { color: #e91e8c; }
+
+        [data-theme="overpinku"] ::selection { background: rgba(255, 20, 147, 0.25); color: #5c1a3a; }
+
+        [data-theme="overpinku"] ::-webkit-scrollbar { width: 8px; }
+        [data-theme="overpinku"] ::-webkit-scrollbar-track { background: #ffe4ee; }
+        [data-theme="overpinku"] ::-webkit-scrollbar-thumb { background: #ff69b4; border-radius: 10px; }
+        [data-theme="overpinku"] ::-webkit-scrollbar-thumb:hover { background: #e91e8c; }
+
+        @keyframes pinku-heartbeat {
+            0%, 100% { transform: scale(1); }
+            50%       { transform: scale(1.07); }
         }
     </style>
 
@@ -267,6 +328,12 @@ function formatSizeUnits($bytes)
             <?php echo $items_html; ?>
         </ul>
     </div>
+
+    <a class="gh-link" href="https://github.com/Leander-Andersen/public-ags-scripts/issues/new/choose"
+       target="_blank" rel="noopener" aria-label="Report bug or request feature">
+        <span class="material-symbols-outlined" style="font-size:18px">bug_report</span>
+        <span>Bug / Feature</span>
+    </a>
 
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
         <span class="material-symbols-outlined" id="theme-icon" style="font-size:18px">dark_mode</span>
@@ -293,6 +360,34 @@ function formatSizeUnits($bytes)
             // Sync button state with whatever the inline script set
             var saved = localStorage.getItem('theme') || 'dark';
             applyTheme(saved, false);
+
+            // ── OverPinku: hearts on click ─────────────────────
+            var _ph = ['♥', '♥', '♥', '♡', '❤'];
+            var _pc = ['#ff69b4', '#ff1493', '#e91e8c', '#ff85c2', '#c2185b', '#ffb3d9'];
+            document.addEventListener('click', function(e) {
+                if (document.documentElement.dataset.theme !== 'overpinku') return;
+                var n = 5 + Math.floor(Math.random() * 5);
+                for (var i = 0; i < n; i++) (function() {
+                    var el  = document.createElement('span');
+                    el.textContent = _ph[Math.floor(Math.random() * _ph.length)];
+                    var sz  = 14 + Math.random() * 18;
+                    var a   = (Math.random() - 0.5) * Math.PI * 1.4;
+                    var d   = 50 + Math.random() * 80;
+                    var dx  = Math.sin(a) * d, dy = -(40 + Math.random() * 80);
+                    var dur = 0.55 + Math.random() * 0.45;
+                    el.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;' +
+                        'font-size:' + sz + 'px;color:' + _pc[Math.floor(Math.random() * _pc.length)] + ';' +
+                        'pointer-events:none;user-select:none;z-index:99999;' +
+                        'transform:translate(-50%,-50%);opacity:1;transition:none';
+                    document.body.appendChild(el);
+                    requestAnimationFrame(function() { requestAnimationFrame(function() {
+                        el.style.transition = 'transform ' + dur + 's ease-out, opacity ' + dur + 's ease-out';
+                        el.style.transform  = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(0.4)';
+                        el.style.opacity    = '0';
+                    }); });
+                    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, (dur + 0.15) * 1000);
+                })();
+            });
         })();
     </script>
 </body>
