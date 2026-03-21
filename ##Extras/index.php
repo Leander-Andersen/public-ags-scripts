@@ -423,7 +423,7 @@ function formatSizeUnits($bytes)
         /* ── OverPinku: heart cursor (tip = bottom point of heart) ── */
         [data-theme="overpinku"],
         [data-theme="overpinku"] * {
-            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.5' stroke-linejoin='round' d='M16 29C16 29 3 19 3 11C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 11C29 19 16 29 16 29Z'/%3E%3Ccircle cx='16' cy='29' r='2' fill='white' opacity='.9'/%3E%3C/svg%3E") 10 18, auto;
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='24' viewBox='0 0 22 24'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.2' stroke-linejoin='round' d='M1 1 L1 16 L5 12.5 L8 18.5 L10 17.5 L7 11.5 L12 11.5 Z'/%3E%3Cpath fill='%23ff69b4' stroke='white' stroke-width='0.7' stroke-linejoin='round' d='M15 15 C15 15 12.5 12.5 12.5 11 C12.5 10.1 13.2 9.5 14 9.5 C14.5 9.5 14.8 9.8 15 10.3 C15.2 9.8 15.5 9.5 16 9.5 C16.8 9.5 17.5 10.1 17.5 11 C17.5 12.5 15 15 15 15 Z'/%3E%3C/svg%3E") 1 1, auto;
         }
 
         /* ── OverPinku: sakura petals ────────────────────── */
