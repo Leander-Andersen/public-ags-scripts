@@ -510,6 +510,12 @@ $title = htmlspecialchars(basename($requested));
                     }); });
                     setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, (dur + 0.2) * 1000);
                 })();
+                // Delay same-origin navigation so burst stays visible
+                var lnk = e.target.closest('a[href]');
+                if (!lnk || lnk.target || e.ctrlKey || e.metaKey || e.shiftKey || lnk.download) return;
+                try { if (new URL(lnk.href).origin !== window.location.origin) return; } catch (_) { return; }
+                e.preventDefault();
+                setTimeout(function() { window.location.href = lnk.href; }, 350);
             });
 
             // ── Markdown rendering ────────────────────────────

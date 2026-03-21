@@ -240,6 +240,11 @@ function page_close(): void {
       });});
       setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},(dur+.2)*1000);
     })();
+    var lnk=e.target.closest('a[href]');
+    if(!lnk||lnk.target||e.ctrlKey||e.metaKey||e.shiftKey||lnk.download)return;
+    try{if(new URL(lnk.href).origin!==window.location.origin)return;}catch(_){return;}
+    e.preventDefault();
+    setTimeout(function(){window.location.href=lnk.href;},350);
   });
 })();
 </script>
