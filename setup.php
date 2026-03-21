@@ -9,6 +9,7 @@ $LOCK_FILE = __DIR__ . '/setup.lock';
 if (file_exists($LOCK_FILE)) {
     $locked_at = trim(file_get_contents($LOCK_FILE));
 ?><!DOCTYPE html><html lang="en" data-theme="dark"><head><meta charset="UTF-8"><title>Setup locked</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' d='M16 28C16 28 3 18 3 10.5C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 10.5C29 18 16 28 16 28Z'/%3E%3Ccircle cx='11' cy='10' r='2' fill='white' opacity='0.55'/%3E%3C/svg%3E">
 <script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.theme=t;})()</script>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 <style><?php echo ags_page_styles(); ?></style>
@@ -263,6 +264,7 @@ html[data-theme="overpinku"],html[data-theme="overpinku"] body{background-image:
 [data-theme="overpinku"] ::selection{background:rgba(255,20,147,.25);color:#5c1a3a}
 [data-theme="overpinku"] ::-webkit-scrollbar{width:8px}[data-theme="overpinku"] ::-webkit-scrollbar-track{background:#ffe4ee}[data-theme="overpinku"] ::-webkit-scrollbar-thumb{background:#ff69b4;border-radius:10px}[data-theme="overpinku"] ::-webkit-scrollbar-thumb:hover{background:#e91e8c}
 @keyframes pinku-heartbeat{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+[data-theme="overpinku"],[data-theme="overpinku"] *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.5' stroke-linejoin='round' d='M16 29C16 29 3 19 3 11C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 11C29 19 16 29 16 29Z'/%3E%3C/svg%3E") 16 29,auto}
 CSS; }
 
 // ── Page template ─────────────────────────────────────────────────────────────
@@ -275,6 +277,7 @@ function page_open(string $title): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{$title}</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' d='M16 28C16 28 3 18 3 10.5C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 10.5C29 18 16 28 16 28Z'/%3E%3Ccircle cx='11' cy='10' r='2' fill='white' opacity='0.55'/%3E%3C/svg%3E">
 <script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.theme=t;})()</script>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
 <style>{$styles}</style>
