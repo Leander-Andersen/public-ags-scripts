@@ -67,24 +67,28 @@ Enter two values:
 
 Setup will scan every script in the library, show you a diff of every line that will change, and wait for you to confirm before writing anything. Once applied it:
 
-- Rewrites all domain and folder placeholders across every `.ps1`, `.php`, `.sh`, and other text file in the library
+- Rewrites all `<SCRIPT_DOMAIN>` and `<SCRIPT_FOLDER>` placeholders across every `.ps1`, `.php`, `.sh`, and other text file in the library — including this README, so all URLs below become real copy-paste links
 - Renames the scripts folder on disk to match what you entered
 - Saves your settings to `.setup-config.json` so updates can re-apply them automatically
 - Creates `setup.lock` to prevent accidental re-runs
 
-After setup your scripts are live. Example (using `scripts.yourdomain.com` and folder `scripts`):
+After setup your scripts are live:
 
 ```
-https://scripts.yourdomain.com/scripts/SetDefaultBrowser/SetDefaultBrowser.ps1
-https://scripts.yourdomain.com/scripts/Hextract/Hextract.ps1
-https://scripts.yourdomain.com/scripts/PnS/PnS.ps1
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/Hextract/Hextract.ps1
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/PnS/PnS.ps1
 ```
 
 ---
 
 ## Updating
 
-Once the library is set up, visit `https://your-domain/your-folder/update.php`.
+Once the library is set up, visit:
+
+```
+https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/update.php
+```
 
 The updater will:
 
