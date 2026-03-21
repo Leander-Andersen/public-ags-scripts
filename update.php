@@ -290,14 +290,16 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
 
     page_open('Updater — Applying');
 
-    // 1. Reset to remote (discards all local modifications including applied settings)
-    [$_out, $resetErr, $resetCode] = git('reset', '--hard', "origin/{$branch}");
-    if ($resetCode !== 0) {
-        echo '<div class="alert alert-danger"><strong>git reset failed</strong><br><code>' . htmlspecialchars($resetErr) . '</code></div>';
+    // 1. Switch to the chosen branch and reset it to the remote state.
+    //    Using checkout -B rather than reset --hard so that HEAD actually moves
+    //    to the new branch (reset --hard updates files but leaves HEAD on the old branch).
+    [$_out, $checkoutErr, $checkoutCode] = git('checkout', '-B', $branch, "origin/{$branch}");
+    if ($checkoutCode !== 0) {
+        echo '<div class="alert alert-danger"><strong>git checkout failed</strong><br><code>' . htmlspecialchars($checkoutErr) . '</code></div>';
         page_close();
         exit;
     }
-    echo '<div class="alert alert-success">✅ Pulled latest from <code>' . htmlspecialchars($branch) . '</code></div>';
+    echo '<div class="alert alert-success">✅ Switched to <code>' . htmlspecialchars($branch) . '</code> and pulled latest</div>';
 
     // 2. Re-read config (in case update.php itself was updated — config is gitignored so it survived)
     $config = json_decode(file_get_contents($CONFIG_FILE), true);
