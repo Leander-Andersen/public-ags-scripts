@@ -65,14 +65,22 @@ $title = htmlspecialchars(basename($requested));
     <!-- Fonts / icons -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 
-    <!-- highlight.js -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+    <!-- highlight.js dark theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
+    <!-- Apply saved theme before first paint -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme') || 'dark';
+            document.documentElement.dataset.theme = t;
+        })();
+    </script>
+
     <style>
+        /* ── Dark theme tokens (default) ──────────────────── */
         :root {
             --bg: #0f0f0f;
             --page-bg: #181818;
@@ -80,13 +88,36 @@ $title = htmlspecialchars(basename($requested));
             --muted: #9a9a9a;
             --text: #eaeaea;
             --link: #9ad0ff;
-            /* subtle link tint */
             --link-hover: #bfe8ff;
             --code-bg: #0b0b0b;
             --code-border: rgba(255, 255, 255, 0.04);
             --accent: #b388ff;
             --btn-bg: rgba(255, 255, 255, 0.06);
             --btn-fg: #ddd;
+            --thead-bg: rgba(255, 255, 255, 0.06);
+            --table-border: rgba(255, 255, 255, 0.04);
+            --blockquote-border: rgba(255, 255, 255, 0.06);
+            --blockquote-bg: rgba(255, 255, 255, 0.02);
+        }
+
+        /* ── Light theme tokens ───────────────────────────── */
+        [data-theme="light"] {
+            --bg: #fff;
+            --page-bg: #f0f0f0;
+            --card-bg: #fff;
+            --muted: #6c757d;
+            --text: #212529;
+            --link: #0d6efd;
+            --link-hover: #0a58ca;
+            --code-bg: #f3f4f5;
+            --code-border: rgba(0, 0, 0, 0.08);
+            --accent: #6f42c1;
+            --btn-bg: rgba(0, 0, 0, 0.06);
+            --btn-fg: #333;
+            --thead-bg: rgba(0, 0, 0, 0.05);
+            --table-border: rgba(0, 0, 0, 0.1);
+            --blockquote-border: rgba(0, 0, 0, 0.15);
+            --blockquote-bg: rgba(0, 0, 0, 0.03);
         }
 
         html,
@@ -100,12 +131,12 @@ $title = htmlspecialchars(basename($requested));
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Top/back link - match index.php look and remove bright blue */
+        /* ── Back link ────────────────────────────────────── */
         .top-link {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            margin: 18px 0;
+            margin: 18px 0 0;
             color: var(--text);
             text-decoration: none;
             font-size: 0.95rem;
@@ -122,14 +153,24 @@ $title = htmlspecialchars(basename($requested));
             text-decoration: none;
         }
 
-        /* Page container */
+        /* ── Filename heading ─────────────────────────────── */
+        .file-title {
+            font-size: 1.3rem;
+            font-weight: 400;
+            color: var(--text);
+            margin: 8px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+        }
+
+        /* ── Page container ───────────────────────────────── */
         .container {
             max-width: 980px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        /* Markdown card */
+        /* ── Markdown card ────────────────────────────────── */
         .markdown-body {
             background: var(--card-bg);
             padding: 26px;
@@ -138,24 +179,7 @@ $title = htmlspecialchars(basename($requested));
             color: var(--text);
         }
 
-        /* FORCE dark code blocks (overrides GitHub markdown light theme) */
-        .markdown-body pre,
-        .markdown-body pre code {
-            background: #0b0b0b !important;
-            color: #e6e6e6 !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-            box-shadow: none !important;
-        }
-
-        /* Fix indented code blocks appearing white */
-        .markdown-body code,
-        .markdown-body pre {
-            background-color: #0b0b0b !important;
-        }
-
-
-
-        /* Default text/link colors inside markdown */
+        /* ── Text / links inside markdown ─────────────────── */
         .markdown-body a {
             color: var(--link);
         }
@@ -177,13 +201,13 @@ $title = htmlspecialchars(basename($requested));
         }
 
         .markdown-body blockquote {
-            border-left: 3px solid rgba(255, 255, 255, 0.06);
-            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid var(--blockquote-border);
+            background: var(--blockquote-bg);
             padding: 12px 16px;
             color: var(--muted);
         }
 
-        /* Code blocks */
+        /* ── Code blocks ──────────────────────────────────── */
         pre {
             background: var(--code-bg);
             border: 1px solid var(--code-border);
@@ -191,7 +215,6 @@ $title = htmlspecialchars(basename($requested));
             border-radius: 6px;
             overflow: auto;
             position: relative;
-            /* needed for copy button */
             margin: 1em 0;
             color: #e6e6e6;
         }
@@ -202,15 +225,49 @@ $title = htmlspecialchars(basename($requested));
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
         }
 
+        .markdown-body pre,
+        .markdown-body pre code {
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+        }
+
+        .markdown-body code,
+        .markdown-body pre {
+            background-color: var(--code-bg);
+        }
+
         /* Inline code */
         code:not(pre code) {
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(128, 128, 128, 0.12);
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.95em;
         }
 
-        /* Copy button */
+        /* ── Tables ───────────────────────────────────────── */
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid var(--table-border);
+            padding: 8px;
+            text-align: left;
+        }
+
+        .markdown-body thead tr {
+            background: var(--thead-bg);
+        }
+
+        /* ── Images ───────────────────────────────────────── */
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 6px;
+        }
+
+        /* ── Copy button ──────────────────────────────────── */
         .copy-btn {
             position: absolute;
             right: 8px;
@@ -241,26 +298,32 @@ $title = htmlspecialchars(basename($requested));
             color: #e8ffe8;
         }
 
-        /* Tables and images */
-        .markdown-body table {
-            border-collapse: collapse;
-            width: 100%;
+        /* ── Theme toggle ─────────────────────────────────── */
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            background: rgba(128, 128, 128, 0.15);
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-family: Roboto, sans-serif;
+            font-weight: 300;
+            transition: background 0.15s;
         }
 
-        .markdown-body th,
-        .markdown-body td {
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            padding: 8px;
-            text-align: left;
+        .theme-toggle:hover {
+            background: rgba(128, 128, 128, 0.25);
         }
 
-        .markdown-body img {
-            max-width: 100%;
-            border-radius: 6px;
-        }
-
-        /* Small screens */
-        @media (max-width:600px) {
+        /* ── Small screens ────────────────────────────────── */
+        @media (max-width: 600px) {
             .container {
                 padding: 12px;
             }
@@ -286,22 +349,43 @@ $title = htmlspecialchars(basename($requested));
             <span>Parent Directory</span>
         </a>
 
+        <h1 class="file-title"><?php echo $title; ?></h1>
+
         <article id="content" class="markdown-body">Loading…</article>
     </div>
 
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+        <span class="material-symbols-outlined" id="theme-icon" style="font-size:18px">dark_mode</span>
+        <span id="theme-label">Light</span>
+    </button>
+
     <script>
         (function() {
-            // embed markdown payload from PHP
+            // ── Theme toggle ──────────────────────────────────
+            function applyTheme(t, save) {
+                document.documentElement.dataset.theme = t;
+                document.getElementById('theme-icon').textContent  = t === 'dark' ? 'dark_mode' : 'light_mode';
+                document.getElementById('theme-label').textContent = t === 'dark' ? 'Light' : 'Dark';
+                if (save) localStorage.setItem('theme', t);
+            }
+
+            window.toggleTheme = function () {
+                var current = document.documentElement.dataset.theme;
+                applyTheme(current === 'dark' ? 'light' : 'dark', true);
+            };
+
+            var saved = localStorage.getItem('theme') || 'dark';
+            applyTheme(saved, false);
+
+            // ── Markdown rendering ────────────────────────────
             const md = <?php echo json_encode($contents, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
 
-            // target
             const target = document.getElementById('content');
             if (!target) {
                 console.error('Markdown target element not found.');
                 return;
             }
 
-            // Configure marked + highlight.js
             marked.setOptions({
                 gfm: true,
                 breaks: false,
@@ -319,7 +403,6 @@ $title = htmlspecialchars(basename($requested));
                 }
             });
 
-            // Render
             try {
                 target.innerHTML = marked.parse(md);
             } catch (err) {
@@ -328,18 +411,13 @@ $title = htmlspecialchars(basename($requested));
                 return;
             }
 
-            // Highlight any leftover code blocks
             document.querySelectorAll('pre code').forEach((el) => {
-                try {
-                    hljs.highlightElement(el);
-                } catch (e) {}
+                try { hljs.highlightElement(el); } catch (e) {}
             });
 
-            // Add copy buttons to code blocks
+            // ── Copy buttons ──────────────────────────────────
             function makeCopyButtons() {
-                const pres = Array.from(document.querySelectorAll('pre'));
-                pres.forEach(pre => {
-                    // avoid adding twice
+                Array.from(document.querySelectorAll('pre')).forEach(pre => {
                     if (pre.dataset.copyButtonAdded) return;
                     pre.dataset.copyButtonAdded = '1';
 
@@ -351,11 +429,9 @@ $title = htmlspecialchars(basename($requested));
                     btn.addEventListener('click', async (ev) => {
                         const codeEl = pre.querySelector('code');
                         if (!codeEl) return;
-                        // Get text content, preserve line breaks
                         const text = codeEl.innerText || codeEl.textContent || '';
                         try {
                             await navigator.clipboard.writeText(text);
-                            // flash copied state
                             pre.classList.add('copied');
                             btn.querySelector('.label').textContent = 'Copied';
                             btn.querySelector('.tick').style.display = 'inline';
@@ -365,7 +441,6 @@ $title = htmlspecialchars(basename($requested));
                                 btn.querySelector('.tick').style.display = 'none';
                             }, 1500);
                         } catch (e) {
-                            // fallback: select and prompt
                             try {
                                 const r = document.createRange();
                                 r.selectNodeContents(codeEl);
@@ -393,21 +468,14 @@ $title = htmlspecialchars(basename($requested));
 
             makeCopyButtons();
 
-            // If markdown contains dynamically loaded content (rare), watch for added pre tags
             const mo = new MutationObserver((mutations) => {
                 let added = false;
                 for (const m of mutations) {
-                    if (m.addedNodes && m.addedNodes.length) {
-                        added = true;
-                        break;
-                    }
+                    if (m.addedNodes && m.addedNodes.length) { added = true; break; }
                 }
                 if (added) makeCopyButtons();
             });
-            mo.observe(target, {
-                childList: true,
-                subtree: true
-            });
+            mo.observe(target, { childList: true, subtree: true });
         })();
     </script>
 </body>

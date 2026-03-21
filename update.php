@@ -114,20 +114,24 @@ function apply_settings(array $config, string $base): array {
 function page_open(string $title): void {
     echo <<<HTML
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{$title}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.bsTheme=t;})()</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <style>
   code { font-size: .85em; }
-  .commit-log { font-family: monospace; font-size: .82rem; background: #f6f8fa; border: 1px solid #d0d7de;
-                border-radius: .25rem; padding: .75rem 1rem; white-space: pre-wrap; }
-  .badge-ok   { background:#198754 }
+  .commit-log { font-family: monospace; font-size: .82rem; background: rgba(255,255,255,0.04);
+                border: 1px solid rgba(255,255,255,0.1); border-radius: .25rem;
+                padding: .75rem 1rem; white-space: pre-wrap; color: #ddd; }
+  [data-bs-theme="light"] .commit-log { background:#f6f8fa; border-color:#d0d7de; color:#212529; }
+  .badge-ok { background:#198754 }
+  .theme-toggle { position:fixed; top:16px; right:16px; z-index:999; border-radius:8px; padding:6px 12px; font-size:.85rem; cursor:pointer; }
 </style>
 </head>
-<body class="bg-light">
+<body>
 <div class="container py-5" style="max-width:760px">
 <h2 class="mb-1">Script Library Updater</h2>
 <p class="text-muted mb-4">Pulls the latest scripts from git and re-applies your saved settings automatically.</p>
@@ -135,7 +139,22 @@ HTML;
 }
 
 function page_close(): void {
-    echo '</div></body></html>';
+    echo <<<'HTML'
+</div>
+<button class="btn btn-outline-secondary theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
+<script>
+(function(){
+  function applyTheme(t,save){
+    document.documentElement.dataset.bsTheme=t;
+    document.getElementById('theme-btn').textContent=t==='dark'?'Light':'Dark';
+    if(save)localStorage.setItem('theme',t);
+  }
+  window.toggleTheme=function(){applyTheme(document.documentElement.dataset.bsTheme==='dark'?'light':'dark',true);};
+  applyTheme(localStorage.getItem('theme')||'dark',false);
+})();
+</script>
+</body></html>
+HTML;
 }
 
 // ── Guards ────────────────────────────────────────────────────────────────────

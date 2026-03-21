@@ -8,9 +8,10 @@ session_start();
 $LOCK_FILE = __DIR__ . '/setup.lock';
 if (file_exists($LOCK_FILE)) {
     $locked_at = trim(file_get_contents($LOCK_FILE));
-?><!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Setup locked</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-</head><body class="bg-light"><div class="container py-5" style="max-width:640px">
+?><!DOCTYPE html><html lang="en" data-bs-theme="dark"><head><meta charset="UTF-8"><title>Setup locked</title>
+<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.bsTheme=t;})();</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+</head><body><div class="container py-5" style="max-width:640px">
 <div class="alert alert-warning"><strong>Setup already completed</strong><br>
 Ran on: <?= htmlspecialchars($locked_at) ?><br><br>
 Delete <code>setup.lock</code> from the server to re-run setup.</div>
@@ -94,14 +95,14 @@ function permission_warning(string $base): ?string {
     // Check scripts folder is writable (needed to rewrite files)
     if (!is_writable($base)) {
         $cmd = htmlspecialchars("sudo chown -R {$user}:{$user} {$base}");
-        $warnings[] = "Scripts folder not writable — run: <pre class=\"mt-1 mb-0 p-2 bg-light border rounded\">{$cmd}</pre>";
+        $warnings[] = "Scripts folder not writable — run: <pre class=\"mt-1 mb-0 p-2 bg-body-secondary border rounded\">{$cmd}</pre>";
     }
 
     // Check parent directory is writable (needed to rename the folder)
     $parent = dirname($base);
     if (!is_writable($parent)) {
         $cmd = htmlspecialchars("sudo chown {$user}:{$user} {$parent}");
-        $warnings[] = "Web root directory not writable (needed to rename the scripts folder) — run: <pre class=\"mt-1 mb-0 p-2 bg-light border rounded\">{$cmd}</pre>";
+        $warnings[] = "Web root directory not writable (needed to rename the scripts folder) — run: <pre class=\"mt-1 mb-0 p-2 bg-body-secondary border rounded\">{$cmd}</pre>";
     }
 
     if (empty($warnings)) return null;
@@ -192,22 +193,28 @@ function validate(string $domain, string $folder): array {
 function page_open(string $title): void {
     echo <<<HTML
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{$title}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.bsTheme=t;})()</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <style>
-  .diff-old { background:#ffeef0; color:#b31d28; font-family:monospace; font-size:.82rem; white-space:pre-wrap; word-break:break-all; }
-  .diff-new { background:#e6ffec; color:#22863a; font-family:monospace; font-size:.82rem; white-space:pre-wrap; word-break:break-all; }
-  .file-header { background:#f6f8fa; border:1px solid #d0d7de; padding:.4rem .75rem; font-weight:600; font-size:.9rem; border-radius:.25rem .25rem 0 0; }
-  .diff-block  { border:1px solid #d0d7de; border-top:0; border-radius:0 0 .25rem .25rem; overflow:hidden; margin-bottom:1.25rem; }
+  .diff-old    { background:rgba(255,80,80,0.12);  color:#ff9090; font-family:monospace; font-size:.82rem; white-space:pre-wrap; word-break:break-all; }
+  .diff-new    { background:rgba(60,210,100,0.12); color:#7dd57d; font-family:monospace; font-size:.82rem; white-space:pre-wrap; word-break:break-all; }
+  .file-header { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:.4rem .75rem; font-weight:600; font-size:.9rem; border-radius:.25rem .25rem 0 0; }
+  .diff-block  { border:1px solid rgba(255,255,255,0.1); border-top:0; border-radius:0 0 .25rem .25rem; overflow:hidden; margin-bottom:1.25rem; }
   .diff-row    { padding:.2rem .75rem; }
   .lnum        { display:inline-block; width:2.5rem; color:#888; user-select:none; }
+  [data-bs-theme="light"] .diff-old    { background:#ffeef0; color:#b31d28; }
+  [data-bs-theme="light"] .diff-new    { background:#e6ffec; color:#22863a; }
+  [data-bs-theme="light"] .file-header { background:#f6f8fa; border-color:#d0d7de; }
+  [data-bs-theme="light"] .diff-block  { border-color:#d0d7de; }
+  .theme-toggle { position:fixed; top:16px; right:16px; z-index:999; border-radius:8px; padding:6px 12px; font-size:.85rem; cursor:pointer; }
 </style>
 </head>
-<body class="bg-light">
+<body>
 <div class="container py-5" style="max-width:760px">
 <h2 class="mb-1">Script Library Setup</h2>
 <p class="text-muted mb-4">Replaces <code>&lt;SCRIPT_DOMAIN&gt;</code> and <code>&lt;SCRIPT_FOLDER&gt;</code> placeholders across all scripts.</p>
@@ -215,7 +222,22 @@ HTML;
 }
 
 function page_close(): void {
-    echo '</div></body></html>';
+    echo <<<'HTML'
+</div>
+<button class="btn btn-outline-secondary theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
+<script>
+(function(){
+  function applyTheme(t,save){
+    document.documentElement.dataset.bsTheme=t;
+    document.getElementById('theme-btn').textContent=t==='dark'?'Light':'Dark';
+    if(save)localStorage.setItem('theme',t);
+  }
+  window.toggleTheme=function(){applyTheme(document.documentElement.dataset.bsTheme==='dark'?'light':'dark',true);};
+  applyTheme(localStorage.getItem('theme')||'dark',false);
+})();
+</script>
+</body></html>
+HTML;
 }
 
 // ── Route ─────────────────────────────────────────────────────────────────────
@@ -305,7 +327,7 @@ if ($warn) { echo $warn; page_close(); exit; }
 
 // ── Debug panel ───────────────────────────────────────────────────────────────
 echo '<details class="mb-4"><summary class="text-muted" style="cursor:pointer">Debug info</summary>';
-echo '<div class="mt-2 p-3 bg-light border rounded" style="font-family:monospace;font-size:.8rem">';
+echo '<div class="mt-2 p-3 bg-body-secondary border rounded" style="font-family:monospace;font-size:.8rem">';
 echo '<strong>Base path:</strong> ' . htmlspecialchars($base) . '<br>';
 echo '<strong>Replacements:</strong><br>';
 foreach ($replacements as $k => $v) {
