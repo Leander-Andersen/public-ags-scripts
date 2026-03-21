@@ -112,8 +112,8 @@ function apply_settings(array $config, string $base): array {
 
 // ── Shared page styles ─────────────────────────────────────────────────────────
 function ags_page_styles(): string { return <<<'CSS'
-:root{--bg:#181818;--surface:#222;--surface2:#2c2c2c;--border:rgba(255,255,255,.1);--text:#eaeaea;--muted:#9a9a9a;--accent:#b388ff;--input-bg:rgba(255,255,255,.06);--input-border:rgba(255,255,255,.15);--s-bg:rgba(40,167,69,.15);--s-fg:#7dd57d;--s-b:rgba(40,167,69,.3);--d-bg:rgba(220,53,69,.15);--d-fg:#ff9090;--d-b:rgba(220,53,69,.3);--w-bg:rgba(255,193,7,.12);--w-fg:#ffd060;--w-b:rgba(255,193,7,.3);--i-bg:rgba(13,202,240,.1);--i-fg:#7ee8ff;--i-b:rgba(13,202,240,.25)}
-[data-theme="light"]{--bg:#e8eaed;--surface:#fff;--surface2:#f3f4f6;--border:rgba(0,0,0,.12);--text:#212529;--muted:#6c757d;--accent:#6f42c1;--input-bg:#fff;--input-border:rgba(0,0,0,.2);--s-bg:#d1e7dd;--s-fg:#0a3622;--s-b:#a3cfbb;--d-bg:#f8d7da;--d-fg:#58151c;--d-b:#f1aeb5;--w-bg:#fff3cd;--w-fg:#664d03;--w-b:#ffe69c;--i-bg:#cff4fc;--i-fg:#055160;--i-b:#9eeaf9}
+:root{--bg:#181818;--surface:#222;--surface2:#2c2c2c;--border:rgba(255,255,255,.1);--text:#eaeaea;--muted:#9a9a9a;--accent:#b388ff;--btn-pink:#ec4899;--btn-pink-hover:#f472b6;--input-bg:rgba(255,255,255,.06);--input-border:rgba(255,255,255,.15);--s-bg:rgba(40,167,69,.15);--s-fg:#7dd57d;--s-b:rgba(40,167,69,.3);--d-bg:rgba(220,53,69,.15);--d-fg:#ff9090;--d-b:rgba(220,53,69,.3);--w-bg:rgba(255,193,7,.12);--w-fg:#ffd060;--w-b:rgba(255,193,7,.3);--i-bg:rgba(13,202,240,.1);--i-fg:#7ee8ff;--i-b:rgba(13,202,240,.25)}
+[data-theme="light"]{--bg:#e8eaed;--surface:#fff;--surface2:#f3f4f6;--border:rgba(0,0,0,.12);--text:#212529;--muted:#6c757d;--accent:#6f42c1;--btn-pink:#be185d;--btn-pink-hover:#db2777;--input-bg:#fff;--input-border:rgba(0,0,0,.2);--s-bg:#d1e7dd;--s-fg:#0a3622;--s-b:#a3cfbb;--d-bg:#f8d7da;--d-fg:#58151c;--d-b:#f1aeb5;--w-bg:#fff3cd;--w-fg:#664d03;--w-b:#ffe69c;--i-bg:#cff4fc;--i-fg:#055160;--i-b:#9eeaf9}
 *{font-family:'Roboto',system-ui,sans-serif;font-weight:300;box-sizing:border-box;color:var(--text);transition:color .25s ease}
 html,body{margin:0;padding:0;min-height:100vh;background-color:var(--bg);transition:background-color .25s ease,color .25s ease}
 .container{max-width:800px;margin:0 auto;padding:40px max(24px,4vw)}
@@ -141,13 +141,14 @@ code{background:rgba(128,128,128,.12);padding:2px 6px;border-radius:4px;font-fam
 .form-control,.form-select{display:block;width:100%;padding:9px 12px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-family:inherit;font-size:.95rem;font-weight:300;transition:border-color .2s,box-shadow .2s}
 .form-select{appearance:none;-webkit-appearance:none;padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-color:var(--input-bg)}
 .form-control:focus,.form-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(179,136,255,.15)}
+option{background-color:var(--surface);color:var(--text)}
 .form-text{display:block;margin-top:4px;font-size:.82rem;color:var(--muted)}
 .btn{display:inline-flex;align-items:center;padding:9px 18px;border-radius:6px;border:1px solid transparent;font-family:inherit;font-size:.9rem;font-weight:400;cursor:pointer;text-decoration:none;transition:background-color .15s,border-color .15s,color .15s;white-space:nowrap}
-.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#c9a2ff}
+.btn-primary{background:var(--btn-pink);color:#fff}.btn-primary:hover{background:var(--btn-pink-hover)}
 .btn-success{background:#2d7d46;color:#fff}.btn-success:hover{background:#379657}
 .btn-secondary,.btn-outline-secondary{background:transparent;color:var(--muted);border-color:var(--border)}
 .btn-secondary:hover,.btn-outline-secondary:hover{background:rgba(128,128,128,.1);color:var(--text)}
-[data-theme="light"] .btn-primary{background:#6f42c1}[data-theme="light"] .btn-success{background:#198754}
+[data-theme="light"] .btn-success{background:#198754}
 .list-group{list-style:none;padding:0;margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
 .list-group-item{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.88rem;display:flex;align-items:baseline;gap:6px;background:var(--surface)}
 .list-group-item:last-child{border-bottom:none}
