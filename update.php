@@ -267,7 +267,7 @@ if ($action === 'check') {
         $line_count = count(explode("\n", trim($log)));
         echo '<div class="alert alert-info"><strong>' . $line_count . ' new commit' . ($line_count === 1 ? '' : 's') . ' available</strong> on <code>' . htmlspecialchars($branch) . '</code>:</div>';
         echo '<pre class="commit-log">' . htmlspecialchars($log) . '</pre>';
-        echo '<div class="alert alert-warning mt-3"><strong>How this works:</strong> The update will reset all repo files to the latest version (including reverting them to placeholders), then immediately re-apply your saved settings. Your <code>.setup-config.json</code> is never touched by git.</div>';
+        echo '<div class="alert alert-warning mt-3"><strong>How this works:</strong> The update will reset all repo files to the latest version (including reverting them to placeholders), re-apply your saved settings, and copy the updated file browser and viewer to the web root. Your <code>.setup-config.json</code> is never touched by git.</div>';
 
         echo '<form method="post" class="mt-3">';
         echo '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($csrf) . '">';
@@ -315,7 +315,36 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     }
     echo '</ul>';
 
-    // 4. Show new commit
+    // 4. Copy ##Extras web-root files (index.php, viewer.php, globalVariables.php) to DOCUMENT_ROOT
+    //    install.sh places these files at the web root on first install; the updater must keep them in sync.
+    $webroot = realpath($_SERVER['DOCUMENT_ROOT']);
+    $extras  = $BASE . '/##Extras';
+    $webroot_files = ['index.php', 'viewer.php', 'globalVariables.php'];
+    $copy_results  = [];
+    foreach ($webroot_files as $wf) {
+        $src  = $extras . '/' . $wf;
+        $dest = $webroot . '/' . $wf;
+        if (!is_file($src)) {
+            $copy_results[] = ['file' => $wf, 'status' => 'skip', 'msg' => 'Source not found in ##Extras'];
+            continue;
+        }
+        if (copy($src, $dest)) {
+            $copy_results[] = ['file' => $wf, 'status' => 'ok', 'msg' => 'Copied to web root'];
+        } else {
+            $copy_results[] = ['file' => $wf, 'status' => 'err', 'msg' => 'Copy failed — check permissions on ' . htmlspecialchars($dest)];
+        }
+    }
+
+    echo '<h5 class="mt-3 mb-2">Web root files updated</h5>';
+    echo '<ul class="list-group mb-4">';
+    foreach ($copy_results as $r) {
+        $icon = match($r['status']) { 'ok' => '✅', 'skip' => '⚠️', default => '❌' };
+        $cls  = match($r['status']) { 'ok' => 'list-group-item-success', 'err' => 'list-group-item-danger', 'skip' => 'list-group-item-warning', default => '' };
+        echo "<li class=\"list-group-item {$cls}\"><code>{$r['file']}</code> {$icon} — {$r['msg']}</li>";
+    }
+    echo '</ul>';
+
+    // 5. Show new commit
     [$commit, $_e, $_c] = git('log', '-1', '--format=%h %s (%ar)');
     echo '<div class="alert alert-success"><strong>Update complete.</strong> Now at: <code>' . htmlspecialchars($commit) . '</code></div>';
     echo '<a href="update.php" class="btn btn-primary">Back to updater</a>';
