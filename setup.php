@@ -8,10 +8,11 @@ session_start();
 $LOCK_FILE = __DIR__ . '/setup.lock';
 if (file_exists($LOCK_FILE)) {
     $locked_at = trim(file_get_contents($LOCK_FILE));
-?><!DOCTYPE html><html lang="en" data-bs-theme="dark"><head><meta charset="UTF-8"><title>Setup locked</title>
-<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.bsTheme=t;})();</script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-</head><body><div class="container py-5" style="max-width:640px">
+?><!DOCTYPE html><html lang="en" data-theme="dark"><head><meta charset="UTF-8"><title>Setup locked</title>
+<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.theme=t;})()</script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+<style><?php echo ags_page_styles(); ?></style>
+</head><body><div class="container">
 <div class="alert alert-warning"><strong>Setup already completed</strong><br>
 Ran on: <?= htmlspecialchars($locked_at) ?><br><br>
 Delete <code>setup.lock</code> from the server to re-run setup.</div>
@@ -189,33 +190,84 @@ function validate(string $domain, string $folder): array {
     return $errs;
 }
 
+// ── Shared page styles ─────────────────────────────────────────────────────────
+function ags_page_styles(): string { return <<<'CSS'
+:root{--bg:#181818;--surface:#222;--surface2:#2c2c2c;--border:rgba(255,255,255,.1);--text:#eaeaea;--muted:#9a9a9a;--accent:#b388ff;--input-bg:rgba(255,255,255,.06);--input-border:rgba(255,255,255,.15);--s-bg:rgba(40,167,69,.15);--s-fg:#7dd57d;--s-b:rgba(40,167,69,.3);--d-bg:rgba(220,53,69,.15);--d-fg:#ff9090;--d-b:rgba(220,53,69,.3);--w-bg:rgba(255,193,7,.12);--w-fg:#ffd060;--w-b:rgba(255,193,7,.3);--i-bg:rgba(13,202,240,.1);--i-fg:#7ee8ff;--i-b:rgba(13,202,240,.25)}
+[data-theme="light"]{--bg:#e8eaed;--surface:#fff;--surface2:#f3f4f6;--border:rgba(0,0,0,.12);--text:#212529;--muted:#6c757d;--accent:#6f42c1;--input-bg:#fff;--input-border:rgba(0,0,0,.2);--s-bg:#d1e7dd;--s-fg:#0a3622;--s-b:#a3cfbb;--d-bg:#f8d7da;--d-fg:#58151c;--d-b:#f1aeb5;--w-bg:#fff3cd;--w-fg:#664d03;--w-b:#ffe69c;--i-bg:#cff4fc;--i-fg:#055160;--i-b:#9eeaf9}
+*{font-family:'Roboto',system-ui,sans-serif;font-weight:300;box-sizing:border-box;color:var(--text);transition:color .25s ease}
+html,body{margin:0;padding:0;min-height:100vh;background-color:var(--bg);transition:background-color .25s ease,color .25s ease}
+.container{max-width:800px;margin:0 auto;padding:40px max(24px,4vw)}
+h2{font-size:1.4rem;font-weight:400;margin:0 0 4px}h5{font-size:1rem;font-weight:500;margin:0 0 12px}
+.text-muted{color:var(--muted)}.text-danger{color:var(--d-fg)}.text-success{color:var(--s-fg)}.fw-semibold{font-weight:600}
+.mb-0{margin-bottom:0}.mb-1{margin-bottom:4px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:16px}.mb-4{margin-bottom:24px}
+.mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-3{margin-top:16px}.mt-4{margin-top:24px}
+.ms-2{margin-left:8px}.me-2{margin-right:8px}.py-5{padding-top:48px;padding-bottom:48px}
+code{background:rgba(128,128,128,.12);padding:2px 6px;border-radius:4px;font-family:ui-monospace,'Roboto Mono',monospace;font-size:.85em}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px}
+.card-body{padding:20px 24px}.card-title{font-size:1rem;font-weight:500;margin:0 0 16px}
+.alert{padding:12px 16px;border-radius:8px;border:1px solid;font-size:.9rem;margin-bottom:16px}
+.alert strong{font-weight:600;color:inherit}.alert code{background:rgba(128,128,128,.15);color:inherit}
+.alert a{color:inherit;text-decoration:underline}.alert ul{margin:8px 0 0;padding-left:20px}.alert li{margin-bottom:4px}
+.alert pre{background:rgba(128,128,128,.1);border:1px solid rgba(128,128,128,.2);padding:8px 10px;border-radius:4px;margin:6px 0 0;font-size:.82rem;white-space:pre-wrap;word-break:break-all}
+.alert-success{background:var(--s-bg);color:var(--s-fg);border-color:var(--s-b)}
+.alert-danger{background:var(--d-bg);color:var(--d-fg);border-color:var(--d-b)}
+.alert-warning{background:var(--w-bg);color:var(--w-fg);border-color:var(--w-b)}
+.alert-info{background:var(--i-bg);color:var(--i-fg);border-color:var(--i-b)}
+.table{width:100%;border-collapse:collapse;font-size:.9rem}
+.table th,.table td{padding:10px 14px;border:1px solid var(--border);text-align:left;background:transparent}
+.table th{font-weight:500;color:var(--muted);background:var(--surface2);width:160px}
+.table td{background:var(--surface)}.table-sm th,.table-sm td{padding:7px 12px}
+.form-label{display:block;margin-bottom:6px;font-size:.9rem}
+.form-control,.form-select{display:block;width:100%;padding:9px 12px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:6px;color:var(--text);font-family:inherit;font-size:.95rem;font-weight:300;transition:border-color .2s,box-shadow .2s}
+.form-select{appearance:none;-webkit-appearance:none;padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-color:var(--input-bg)}
+.form-control:focus,.form-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(179,136,255,.15)}
+.form-text{display:block;margin-top:4px;font-size:.82rem;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;padding:9px 18px;border-radius:6px;border:1px solid transparent;font-family:inherit;font-size:.9rem;font-weight:400;cursor:pointer;text-decoration:none;transition:background-color .15s,border-color .15s,color .15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#c9a2ff}
+.btn-success{background:#2d7d46;color:#fff}.btn-success:hover{background:#379657}
+.btn-secondary,.btn-outline-secondary{background:transparent;color:var(--muted);border-color:var(--border)}
+.btn-secondary:hover,.btn-outline-secondary:hover{background:rgba(128,128,128,.1);color:var(--text)}
+[data-theme="light"] .btn-primary{background:#6f42c1}[data-theme="light"] .btn-success{background:#198754}
+.list-group{list-style:none;padding:0;margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.list-group-item{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.88rem;display:flex;align-items:baseline;gap:6px;background:var(--surface)}
+.list-group-item:last-child{border-bottom:none}
+.list-group-item code{background:rgba(128,128,128,.15);padding:2px 6px;border-radius:4px}
+.list-group-item-success{background:var(--s-bg);color:var(--s-fg)}.list-group-item-danger{background:var(--d-bg);color:var(--d-fg)}.list-group-item-warning{background:var(--w-bg);color:var(--w-fg)}
+pre,.commit-log{background:rgba(128,128,128,.08);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-family:ui-monospace,'Roboto Mono',monospace;font-size:.82rem;white-space:pre-wrap;color:var(--text);margin:0}
+details{border:1px solid var(--border);border-radius:8px;margin-bottom:16px}
+details[open]>summary{border-bottom:1px solid var(--border)}
+summary{padding:10px 14px;cursor:pointer;color:var(--muted);font-size:.9rem;list-style:none}
+summary::-webkit-details-marker{display:none}
+.border{border:1px solid var(--border)}.rounded{border-radius:6px}
+.bg-body-secondary,.bg-dark{background:var(--surface2)}.p-2{padding:8px}.p-3{padding:16px}
+.diff-old{background:rgba(255,80,80,.12);color:#ff9090;font-family:monospace;font-size:.82rem;white-space:pre-wrap;word-break:break-all}
+.diff-new{background:rgba(60,210,100,.12);color:#7dd57d;font-family:monospace;font-size:.82rem;white-space:pre-wrap;word-break:break-all}
+.file-header{background:rgba(255,255,255,.06);border:1px solid var(--border);padding:.4rem .75rem;font-weight:600;font-size:.9rem;border-radius:6px 6px 0 0}
+.diff-block{border:1px solid var(--border);border-top:0;border-radius:0 0 6px 6px;overflow:hidden;margin-bottom:20px}
+.diff-row{padding:.2rem .75rem}.lnum{display:inline-block;width:2.5rem;color:#888;user-select:none}
+[data-theme="light"] .diff-old{background:#ffeef0;color:#b31d28}
+[data-theme="light"] .diff-new{background:#e6ffec;color:#22863a}
+[data-theme="light"] .file-header{background:#f6f8fa;border-color:rgba(0,0,0,.12)}
+.theme-toggle{position:fixed;top:16px;right:16px;z-index:999;background:rgba(128,128,128,.15);border:1px solid rgba(128,128,128,.25);color:var(--text);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:300;font-family:inherit;cursor:pointer;transition:background-color .15s}
+.theme-toggle:hover{background:rgba(128,128,128,.25)}
+CSS; }
+
 // ── Page template ─────────────────────────────────────────────────────────────
 function page_open(string $title): void {
+    $styles = ags_page_styles();
     echo <<<HTML
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{$title}</title>
-<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.bsTheme=t;})()</script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-<style>
-  .diff-old    { background:rgba(255,80,80,0.12);  color:#ff9090; font-family:monospace; font-size:.82rem; white-space:pre-wrap; word-break:break-all; }
-  .diff-new    { background:rgba(60,210,100,0.12); color:#7dd57d; font-family:monospace; font-size:.82rem; white-space:pre-wrap; word-break:break-all; }
-  .file-header { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:.4rem .75rem; font-weight:600; font-size:.9rem; border-radius:.25rem .25rem 0 0; }
-  .diff-block  { border:1px solid rgba(255,255,255,0.1); border-top:0; border-radius:0 0 .25rem .25rem; overflow:hidden; margin-bottom:1.25rem; }
-  .diff-row    { padding:.2rem .75rem; }
-  .lnum        { display:inline-block; width:2.5rem; color:#888; user-select:none; }
-  [data-bs-theme="light"] .diff-old    { background:#ffeef0; color:#b31d28; }
-  [data-bs-theme="light"] .diff-new    { background:#e6ffec; color:#22863a; }
-  [data-bs-theme="light"] .file-header { background:#f6f8fa; border-color:#d0d7de; }
-  [data-bs-theme="light"] .diff-block  { border-color:#d0d7de; }
-  .theme-toggle { position:fixed; top:16px; right:16px; z-index:999; border-radius:8px; padding:6px 12px; font-size:.85rem; cursor:pointer; }
-</style>
+<script>(function(){var t=localStorage.getItem('theme')||'dark';document.documentElement.dataset.theme=t;})()</script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+<style>{$styles}</style>
 </head>
 <body>
-<div class="container py-5" style="max-width:760px">
+<div class="container">
 <h2 class="mb-1">Script Library Setup</h2>
 <p class="text-muted mb-4">Replaces <code>&lt;SCRIPT_DOMAIN&gt;</code> and <code>&lt;SCRIPT_FOLDER&gt;</code> placeholders across all scripts.</p>
 HTML;
@@ -224,15 +276,15 @@ HTML;
 function page_close(): void {
     echo <<<'HTML'
 </div>
-<button class="btn btn-outline-secondary theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
+<button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
 <script>
 (function(){
   function applyTheme(t,save){
-    document.documentElement.dataset.bsTheme=t;
+    document.documentElement.dataset.theme=t;
     document.getElementById('theme-btn').textContent=t==='dark'?'Light':'Dark';
     if(save)localStorage.setItem('theme',t);
   }
-  window.toggleTheme=function(){applyTheme(document.documentElement.dataset.bsTheme==='dark'?'light':'dark',true);};
+  window.toggleTheme=function(){applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark',true);};
   applyTheme(localStorage.getItem('theme')||'dark',false);
 })();
 </script>

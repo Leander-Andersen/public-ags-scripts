@@ -96,21 +96,31 @@ function formatSizeUnits($bytes)
             --bg:    #181818;
             --text:  #fff;
             --muted: rgb(143, 143, 143);
-            --hover: rgba(255, 255, 255, 0.05);
+            --hover: rgba(255, 255, 255, 0.06);
         }
 
         [data-theme="light"] {
-            --bg:    #f8f9fa;
+            --bg:    #e8eaed;
             --text:  #212529;
             --muted: #6c757d;
-            --hover: rgba(0, 0, 0, 0.05);
+            --hover: rgba(0, 0, 0, 0.07);
         }
 
         /* ── Base ───────────────────────────────────────── */
+        /* Only set background on html/body — all other elements stay transparent
+           so that li:hover covers the full row including text and icons. */
         * {
             font-family: 'Roboto', Courier, monospace;
             font-weight: 300;
             color: var(--text);
+            box-sizing: border-box;
+            transition: color 0.25s ease;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
             background-color: var(--bg);
             transition: background-color 0.25s ease, color 0.25s ease;
         }
@@ -156,11 +166,11 @@ function formatSizeUnits($bytes)
             padding: 8px 12px;
             border-radius: 6px;
             margin: 2px 0;
-            transition: background-color 0.12s ease, color 0.25s ease;
+            transition: background-color 0.15s ease;
         }
 
         li:hover {
-            background: var(--hover);
+            background-color: var(--hover);
         }
 
         a {
@@ -211,7 +221,7 @@ function formatSizeUnits($bytes)
             font-size: 0.85rem;
             font-family: 'Roboto', sans-serif;
             font-weight: 300;
-            transition: background 0.15s;
+            transition: background-color 0.15s;
         }
 
         .theme-toggle:hover {
