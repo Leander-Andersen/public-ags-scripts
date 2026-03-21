@@ -66,8 +66,8 @@ $title = htmlspecialchars(basename($requested));
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
-    <!-- highlight.js dark theme -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <!-- highlight.js theme (swapped by JS for light/overpinku) -->
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
@@ -76,6 +76,10 @@ $title = htmlspecialchars(basename($requested));
         (function () {
             var t = localStorage.getItem('theme') || 'dark';
             document.documentElement.dataset.theme = t;
+            if (t !== 'dark') {
+                var l = document.getElementById('hljs-theme');
+                if (l) l.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-light.min.css';
+            }
         })();
     </script>
 
@@ -236,7 +240,7 @@ $title = htmlspecialchars(basename($requested));
             overflow: auto;
             position: relative;
             margin: 1em 0;
-            color: #e6e6e6;
+            color: var(--text);
         }
 
         pre code {
@@ -464,6 +468,10 @@ $title = htmlspecialchars(basename($requested));
 
             function applyTheme(t, save) {
                 document.documentElement.dataset.theme = t;
+                var l = document.getElementById('hljs-theme');
+                if (l) l.href = t === 'dark'
+                    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css'
+                    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-light.min.css';
                 document.getElementById('theme-icon').textContent  = ICON[t]  || 'dark_mode';
                 document.getElementById('theme-label').textContent = LABEL[t] || 'Light';
                 if (save) localStorage.setItem('theme', t);
@@ -479,29 +487,42 @@ $title = htmlspecialchars(basename($requested));
             // ── OverPinku: hearts on click ─────────────────────
             var _ph = ['♥', '♥', '♥', '♡', '❤'];
             var _pc = ['#ff69b4', '#ff1493', '#e91e8c', '#ff85c2', '#c2185b', '#ffb3d9'];
-            document.addEventListener('click', function(e) {
-                if (document.documentElement.dataset.theme !== 'overpinku') return;
-                var n = 5 + Math.floor(Math.random() * 5);
+            function spawnHearts(cx, cy) {
+                var n = 6 + Math.floor(Math.random() * 5);
                 for (var i = 0; i < n; i++) (function() {
                     var el  = document.createElement('span');
                     el.textContent = _ph[Math.floor(Math.random() * _ph.length)];
-                    var sz  = 14 + Math.random() * 18;
-                    var a   = (Math.random() - 0.5) * Math.PI * 1.4;
-                    var d   = 50 + Math.random() * 80;
-                    var dx  = Math.sin(a) * d, dy = -(40 + Math.random() * 80);
-                    var dur = 0.55 + Math.random() * 0.45;
-                    el.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;' +
+                    var sz  = 16 + Math.random() * 16;
+                    var a   = (Math.random() - 0.5) * Math.PI * 1.5;
+                    var d   = 55 + Math.random() * 85;
+                    var dx  = Math.sin(a) * d, dy = -(45 + Math.random() * 85);
+                    var dur = 0.38 + Math.random() * 0.28;
+                    el.style.cssText = 'position:fixed;left:' + cx + 'px;top:' + cy + 'px;' +
                         'font-size:' + sz + 'px;color:' + _pc[Math.floor(Math.random() * _pc.length)] + ';' +
                         'pointer-events:none;user-select:none;z-index:99999;' +
-                        'transform:translate(-50%,-50%);opacity:1;transition:none';
+                        'transform:translate(-50%,-50%) scale(0);opacity:1;' +
+                        'transition:transform 0.12s cubic-bezier(0.34,1.56,0.64,1)';
                     document.body.appendChild(el);
                     requestAnimationFrame(function() { requestAnimationFrame(function() {
-                        el.style.transition = 'transform ' + dur + 's ease-out, opacity ' + dur + 's ease-out';
-                        el.style.transform  = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(0.4)';
-                        el.style.opacity    = '0';
+                        el.style.transform = 'translate(-50%,-50%) scale(1.4)';
+                        setTimeout(function() {
+                            el.style.transition = 'transform ' + dur + 's ease-out, opacity ' + dur + 's ease-out';
+                            el.style.transform  = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(0)';
+                            el.style.opacity    = '0';
+                        }, 125);
                     }); });
-                    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, (dur + 0.15) * 1000);
+                    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, (dur + 0.3) * 1000);
                 })();
+            }
+            document.addEventListener('click', function(e) {
+                if (document.documentElement.dataset.theme !== 'overpinku') return;
+                spawnHearts(e.clientX, e.clientY);
+                // Delay same-origin navigation so the burst is visible
+                var link = e.target.closest('a[href]');
+                if (!link || link.target || e.ctrlKey || e.metaKey || e.shiftKey || link.download) return;
+                try { if (new URL(link.href).origin !== window.location.origin) return; } catch(err) { return; }
+                e.preventDefault();
+                setTimeout(function() { window.location.href = link.href; }, 260);
             });
 
             // ── Markdown rendering ────────────────────────────
