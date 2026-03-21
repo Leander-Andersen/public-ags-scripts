@@ -112,13 +112,12 @@ function formatSizeUnits($bytes)
             font-weight: 300;
             color: var(--text);
             background-color: var(--bg);
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
 
         /* ── Layout ─────────────────────────────────────── */
         .container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 20px 24px;
+            padding: 28px max(40px, 4vw);
         }
 
         .page-title {
@@ -154,10 +153,10 @@ function formatSizeUnits($bytes)
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 6px 8px;
+            padding: 8px 12px;
             border-radius: 6px;
             margin: 2px 0;
-            transition: background 0.15s;
+            transition: background-color 0.12s ease, color 0.25s ease;
         }
 
         li:hover {
