@@ -114,6 +114,7 @@ function apply_settings(array $config, string $base): array {
 function ags_page_styles(): string { return <<<'CSS'
 :root{--bg:#181818;--surface:#222;--surface2:#2c2c2c;--border:rgba(255,255,255,.1);--text:#eaeaea;--muted:#9a9a9a;--accent:#b388ff;--btn-pink:#ec4899;--btn-pink-hover:#f472b6;--input-bg:rgba(255,255,255,.06);--input-border:rgba(255,255,255,.15);--s-bg:rgba(40,167,69,.15);--s-fg:#7dd57d;--s-b:rgba(40,167,69,.3);--d-bg:rgba(220,53,69,.15);--d-fg:#ff9090;--d-b:rgba(220,53,69,.3);--w-bg:rgba(255,193,7,.12);--w-fg:#ffd060;--w-b:rgba(255,193,7,.3);--i-bg:rgba(13,202,240,.1);--i-fg:#7ee8ff;--i-b:rgba(13,202,240,.25)}
 [data-theme="light"]{--bg:#e8eaed;--surface:#fff;--surface2:#f3f4f6;--border:rgba(0,0,0,.12);--text:#212529;--muted:#6c757d;--accent:#6f42c1;--btn-pink:#be185d;--btn-pink-hover:#db2777;--input-bg:#fff;--input-border:rgba(0,0,0,.2);--s-bg:#d1e7dd;--s-fg:#0a3622;--s-b:#a3cfbb;--d-bg:#f8d7da;--d-fg:#58151c;--d-b:#f1aeb5;--w-bg:#fff3cd;--w-fg:#664d03;--w-b:#ffe69c;--i-bg:#cff4fc;--i-fg:#055160;--i-b:#9eeaf9}
+[data-theme="overpinku"]{--bg:#1a0012;--surface:#2a0020;--surface2:#3a0030;--border:rgba(255,105,180,.2);--text:#fff0f5;--muted:#ff9dc8;--accent:#ff69b4;--btn-pink:#ff1493;--btn-pink-hover:#ff69b4;--input-bg:rgba(255,105,180,.08);--input-border:rgba(255,105,180,.25);--s-bg:rgba(255,20,147,.12);--s-fg:#ffb3d9;--s-b:rgba(255,20,147,.3);--d-bg:rgba(220,53,69,.15);--d-fg:#ff9090;--d-b:rgba(220,53,69,.3);--w-bg:rgba(255,193,7,.12);--w-fg:#ffd060;--w-b:rgba(255,193,7,.3);--i-bg:rgba(255,105,180,.1);--i-fg:#ffb3d9;--i-b:rgba(255,105,180,.25)}
 *{font-family:'Roboto',system-ui,sans-serif;font-weight:300;box-sizing:border-box;color:var(--text);transition:color .25s ease}
 html,body{margin:0;padding:0;min-height:100vh;background-color:var(--bg);transition:background-color .25s ease,color .25s ease}
 .container{max-width:800px;margin:0 auto;padding:40px max(24px,4vw)}
@@ -171,6 +172,8 @@ summary::-webkit-details-marker{display:none}
 [data-theme="light"] .file-header{background:#f6f8fa;border-color:rgba(0,0,0,.12)}
 .theme-toggle{position:fixed;top:16px;right:16px;z-index:999;background:rgba(128,128,128,.15);border:1px solid rgba(128,128,128,.25);color:var(--text);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:300;font-family:inherit;cursor:pointer;transition:background-color .15s}
 .theme-toggle:hover{background:rgba(128,128,128,.25)}
+[data-theme="overpinku"] .theme-toggle{background:rgba(255,105,180,.2);border-color:rgba(255,105,180,.4)}
+[data-theme="overpinku"] .theme-toggle:hover{background:rgba(255,105,180,.35)}
 CSS; }
 
 // ── Page template ─────────────────────────────────────────────────────────────
@@ -200,12 +203,14 @@ function page_close(): void {
 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
 <script>
 (function(){
+  var NEXT={dark:'light',light:'overpinku',overpinku:'dark'};
+  var LABEL={dark:'Light',light:'OverPinku \u2665',overpinku:'Dark'};
   function applyTheme(t,save){
     document.documentElement.dataset.theme=t;
-    document.getElementById('theme-btn').textContent=t==='dark'?'Light':'Dark';
+    document.getElementById('theme-btn').textContent=LABEL[t]||'Light';
     if(save)localStorage.setItem('theme',t);
   }
-  window.toggleTheme=function(){applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark',true);};
+  window.toggleTheme=function(){applyTheme(NEXT[document.documentElement.dataset.theme]||'light',true);};
   applyTheme(localStorage.getItem('theme')||'dark',false);
 })();
 </script>

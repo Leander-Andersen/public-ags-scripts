@@ -106,6 +106,13 @@ function formatSizeUnits($bytes)
             --hover: rgba(0, 0, 0, 0.07);
         }
 
+        [data-theme="overpinku"] {
+            --bg:    #1a0012;
+            --text:  #fff0f5;
+            --muted: #ff9dc8;
+            --hover: rgba(255, 105, 180, 0.15);
+        }
+
         /* ── Base ───────────────────────────────────────── */
         /* Only set background on html/body — all other elements stay transparent
            so that li:hover covers the full row including text and icons. */
@@ -198,6 +205,9 @@ function formatSizeUnits($bytes)
         [data-theme="light"] .folderIcon { color: #6f42c1; }
         [data-theme="light"] .fileIcon   { color: #d63384; }
 
+        [data-theme="overpinku"] .folderIcon { color: #ff1493; }
+        [data-theme="overpinku"] .fileIcon   { color: #ffb3d9; }
+
         #PD { font-size: small; }
 
         .material-symbols-outlined {
@@ -226,6 +236,15 @@ function formatSizeUnits($bytes)
 
         .theme-toggle:hover {
             background: rgba(128, 128, 128, 0.25);
+        }
+
+        [data-theme="overpinku"] .theme-toggle {
+            background: rgba(255, 105, 180, 0.2);
+            border-color: rgba(255, 105, 180, 0.4);
+        }
+
+        [data-theme="overpinku"] .theme-toggle:hover {
+            background: rgba(255, 105, 180, 0.35);
         }
     </style>
 
@@ -256,16 +275,19 @@ function formatSizeUnits($bytes)
 
     <script>
         (function () {
+            var NEXT  = {dark: 'light', light: 'overpinku', overpinku: 'dark'};
+            var LABEL = {dark: 'Light', light: 'OverPinku', overpinku: 'Dark'};
+            var ICON  = {dark: 'dark_mode', light: 'light_mode', overpinku: 'favorite'};
+
             function applyTheme(t, save) {
                 document.documentElement.dataset.theme = t;
-                document.getElementById('theme-icon').textContent  = t === 'dark' ? 'dark_mode' : 'light_mode';
-                document.getElementById('theme-label').textContent = t === 'dark' ? 'Light' : 'Dark';
+                document.getElementById('theme-icon').textContent  = ICON[t]  || 'dark_mode';
+                document.getElementById('theme-label').textContent = LABEL[t] || 'Light';
                 if (save) localStorage.setItem('theme', t);
             }
 
             window.toggleTheme = function () {
-                var current = document.documentElement.dataset.theme;
-                applyTheme(current === 'dark' ? 'light' : 'dark', true);
+                applyTheme(NEXT[document.documentElement.dataset.theme] || 'light', true);
             };
 
             // Sync button state with whatever the inline script set
