@@ -388,7 +388,7 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     // 1. Switch to the chosen branch and reset it to the remote state.
     //    Using checkout -B rather than reset --hard so that HEAD actually moves
     //    to the new branch (reset --hard updates files but leaves HEAD on the old branch).
-    [$_out, $checkoutErr, $checkoutCode] = git('checkout', '-B', $branch, "origin/{$branch}");
+    [$_out, $checkoutErr, $checkoutCode] = git('checkout', '-f', '-B', $branch, "origin/{$branch}");
     if ($checkoutCode !== 0) {
         echo '<div class="alert alert-danger"><strong>git checkout failed</strong><br><code>' . htmlspecialchars($checkoutErr) . '</code></div>';
         page_close();
