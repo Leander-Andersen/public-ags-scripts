@@ -174,6 +174,9 @@ summary::-webkit-details-marker{display:none}
 .theme-toggle:hover{background:rgba(128,128,128,.25)}
 .gh-link{position:fixed;top:56px;right:16px;z-index:999;background:rgba(128,128,128,.15);border:1px solid rgba(128,128,128,.25);color:var(--text);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:300;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s}
 .gh-link:hover{background:rgba(128,128,128,.25);color:var(--muted);text-decoration:none}
+.back-btn{position:fixed;top:16px;left:16px;z-index:999;background:rgba(128,128,128,.15);border:1px solid rgba(128,128,128,.25);color:var(--text);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:300;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:background-color .15s}.back-btn:hover{background:rgba(128,128,128,.25);color:var(--muted);text-decoration:none}
+[data-theme="overpinku"] .back-btn{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a}
+[data-theme="overpinku"] .back-btn:hover{background:rgba(255,20,147,.22);color:#5c1a3a}
 [data-theme="overpinku"] .gh-link{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a}
 [data-theme="overpinku"] .gh-link:hover{background:rgba(255,20,147,.22);color:#5c1a3a}
 [data-theme="overpinku"] .theme-toggle{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a;animation:pinku-heartbeat 2.5s ease-in-out infinite}
@@ -183,7 +186,7 @@ html[data-theme="overpinku"],html[data-theme="overpinku"] body{background-image:
 [data-theme="overpinku"] ::selection{background:rgba(255,20,147,.25);color:#5c1a3a}
 [data-theme="overpinku"] ::-webkit-scrollbar{width:8px}[data-theme="overpinku"] ::-webkit-scrollbar-track{background:#ffe4ee}[data-theme="overpinku"] ::-webkit-scrollbar-thumb{background:#ff69b4;border-radius:10px}[data-theme="overpinku"] ::-webkit-scrollbar-thumb:hover{background:#e91e8c}
 @keyframes pinku-heartbeat{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
-[data-theme="overpinku"],[data-theme="overpinku"] *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.5' stroke-linejoin='round' d='M16 29C16 29 3 19 3 11C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 11C29 19 16 29 16 29Z'/%3E%3C/svg%3E") 16 29,auto}
+[data-theme="overpinku"],[data-theme="overpinku"] *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.5' stroke-linejoin='round' d='M16 29C16 29 3 19 3 11C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 11C29 19 16 29 16 29Z'/%3E%3Ccircle cx='16' cy='29' r='2' fill='white' opacity='.9'/%3E%3C/svg%3E") 10 18,auto}
 CSS; }
 
 // ── Page template ─────────────────────────────────────────────────────────────
@@ -211,6 +214,7 @@ HTML;
 function page_close(): void {
     echo <<<'HTML'
 </div>
+<a href="../" class="back-btn">&#8592; Browser</a>
 <a class="gh-link" href="https://github.com/Leander-Andersen/public-ags-scripts/issues/new/choose" target="_blank" rel="noopener">🐛 Bug / Feature</a>
 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
 <script>

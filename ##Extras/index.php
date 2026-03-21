@@ -60,7 +60,7 @@ foreach ($scanned_directory as $file) {
             . '<span class="material-symbols-outlined fileIcon">draft</span>'
             . '<a href="' . $href . '">' . $file . '</a>'
             . '<span class="file-meta">'
-            .   '<span class="file-mtime">' . date('Y-m-d', $mtime) . '</span>'
+            .   '<span class="file-mtime">' . date('d.m.Y', $mtime) . '</span>'
             .   '<span class="file-size">' . formatSizeUnits($filesize) . '</span>'
             . '</span>'
             . '<button class="copy-btn" data-url="' . htmlspecialchars($fullUrl) . '" title="Copy URL" aria-label="Copy URL">'
@@ -423,7 +423,7 @@ function formatSizeUnits($bytes)
         /* ── OverPinku: heart cursor (tip = bottom point of heart) ── */
         [data-theme="overpinku"],
         [data-theme="overpinku"] * {
-            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.5' stroke-linejoin='round' d='M16 29C16 29 3 19 3 11C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 11C29 19 16 29 16 29Z'/%3E%3C/svg%3E") 16 29, auto;
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.5' stroke-linejoin='round' d='M16 29C16 29 3 19 3 11C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 11C29 19 16 29 16 29Z'/%3E%3Ccircle cx='16' cy='29' r='2' fill='white' opacity='.9'/%3E%3C/svg%3E") 10 18, auto;
         }
 
         /* ── OverPinku: sakura petals ────────────────────── */
