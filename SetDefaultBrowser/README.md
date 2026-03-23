@@ -5,15 +5,15 @@ Run straight from the web. No local bootstrap needed.
 ## Quick start (interactive menu)
 Windows PowerShell 5.1:
 ```powershell
-iwr -useb https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
+iwr -useb https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
 ```
 
 PowerShell 7+:
 ```powershell
-iwr https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
+iwr https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1 | iex
 ```
 
-You’ll get a menu:
+You'll get a menu:
 - (1) Brave
 - (2) Chrome
 - (3) Firefox
@@ -25,12 +25,12 @@ Use this form to pass -Browser without downloading the file.
 
 Windows PowerShell 5.1:
 ```powershell
-iex "& { $(iwr -useb https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Chrome"
+iex "& { $(iwr -useb https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Chrome"
 ```
 
 PowerShell 7+:
 ```powershell
-iex "& { $(iwr https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Chrome"
+iex "& { $(iwr https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Chrome"
 ```
 
 Accepted values:
@@ -42,11 +42,11 @@ Accepted values:
 Examples:
 ```powershell
 # Set Brave
-iex "& { $(iwr -useb https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Brave"
+iex "& { $(iwr -useb https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Brave"
 ```
 ```powershell
 # Remove enforcement artifacts
-iex "& { $(iwr -useb https://script.isame12.no/public-ags-scripts/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Remove"
+iex "& { $(iwr -useb https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/SetDefaultBrowser/SetDefaultBrowser.ps1) } -Browser Remove"
 ```
 
 ## Notes
@@ -55,5 +55,5 @@ iex "& { $(iwr -useb https://script.isame12.no/public-ags-scripts/SetDefaultBrow
 - No cleanup needed: the one‑liner leaves no local bootstrap behind.
 
 ## Troubleshooting
-- “A parameter cannot be found that matches ‘UseBasicParsing’”: you’re on PowerShell 7+. Remove -useb.
-- “Running scripts is disabled”: irrelevant here; you’re executing a string via iex. If your org enforces Constrained Language Mode, run from an elevated 5.1 console or fix policy.
+- "A parameter cannot be found that matches 'UseBasicParsing'": you're on PowerShell 7+. Remove -useb.
+- "Running scripts is disabled": irrelevant here; you're executing a string via iex. If your org enforces Constrained Language Mode, run from an elevated 5.1 console or fix policy.

@@ -1,2 +1,2 @@
-# Here i have some code snippits to use
-## This includes selfElevatingScript.ps1 witch as it sounds is a snipit witch relaunches current script as admin
+# Here I have some code snippets to use
+## This includes selfElevatingScript.ps1 which as it sounds is a snippet which relaunches the current script as admin
