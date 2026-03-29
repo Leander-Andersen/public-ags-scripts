@@ -123,6 +123,27 @@ function stripFences(s: string): string {
   return s.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/i, "").trim();
 }
 
+/**
+ * Recursively inject `additionalProperties: false` into every object in a
+ * JSON Schema. OpenAI's structured output API requires this on all objects.
+ */
+function enforceStrictSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...schema };
+  if (result.type === "object") {
+    result.additionalProperties = false;
+    if (result.properties && typeof result.properties === "object") {
+      const props = result.properties as Record<string, unknown>;
+      result.properties = Object.fromEntries(
+        Object.entries(props).map(([k, v]) => [k, enforceStrictSchema(v as Record<string, unknown>)])
+      );
+    }
+  }
+  if (result.type === "array" && result.items && typeof result.items === "object") {
+    result.items = enforceStrictSchema(result.items as Record<string, unknown>);
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
@@ -567,7 +588,7 @@ async function gptProcess(
           const chat = async (messages: Array<{ role: string; content: string }>, useSchema = false) => {
             const body: Record<string, unknown> = { model, messages, max_completion_tokens: dp.maxTokens };
             if (useSchema && schema) {
-              body.response_format = { type: "json_schema", json_schema: { name: "output", schema, strict: true } };
+              body.response_format = { type: "json_schema", json_schema: { name: "output", schema: enforceStrictSchema(schema), strict: true } };
             }
             const r = await fetch("https://api.openai.com/v1/chat/completions", {
               method: "POST",
