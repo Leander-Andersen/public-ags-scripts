@@ -1,16 +1,45 @@
 /**
- * gpt-worker — Cloudflare Workers MCP server
+ * gpt-worker v2 — Cloudflare Workers MCP server
  *
- * Implements the MCP JSON-RPC protocol directly over HTTP.
- * No agents/SDK framework dependency — just a fetch handler.
+ * Exposes two MCP tools that let Claude (the overseer) delegate grunt work to
+ * GPT as a parallel worker pool. Claude decides strategy, GPT processes, Claude
+ * evaluates and iterates until it has enough to produce a final answer.
  *
- * Secrets (set via Cloudflare dashboard → Worker → Settings → Variables):
- *   OPENAI_API_KEY — required
+ * Implements the MCP JSON-RPC protocol directly over HTTP — no framework.
  *
- * Vars (wrangler.toml [vars]):
- *   GPT_MODEL              default: gpt-5.4
- *   CHUNK_SIZE             default: 4000
- *   MAX_PARALLEL_REQUESTS  default: 5
+ * ─── Tools ────────────────────────────────────────────────────────────────
+ *
+ * gpt_search(queries, focus, language?)
+ *   Web search via OpenAI Responses API (web_search_preview).
+ *   - queries:  string[]  — all run in parallel
+ *   - focus:    string    — guides what GPT extracts
+ *   - language: string    — optional, e.g. "Norwegian" (default: "English")
+ *   Returns: [{status, query, findings, relevance, sources_used, tokens_used, cached}]
+ *   relevance: "high" | "medium" | "low" | "unknown"
+ *
+ * gpt_process(sources, focus, depth?, format?, json_schema?)
+ *   Load + summarize URLs or raw text via OpenAI Chat Completions.
+ *   - sources:     string[]                — URLs or raw text, all in parallel
+ *   - focus:       string                  — what to extract
+ *   - depth:       "skim" | "detailed"     — brief vs thorough (default: "detailed")
+ *   - format:      "text" | "json"         — prose or structured output (default: "text")
+ *   - json_schema: object                  — required when format="json"
+ *   Returns: [{status, source, summary, chunk_count, tokens_used, cached}]
+ *
+ * ─── Configuration ────────────────────────────────────────────────────────
+ *
+ * Secrets (Cloudflare dashboard → Worker → Settings → Variables and Secrets):
+ *   OPENAI_API_KEY        — required
+ *
+ * Vars (wrangler.toml [vars] or Cloudflare dashboard):
+ *   GPT_MODEL             — model for all calls         (default: gpt-5.4)
+ *   CHUNK_SIZE            — tokens per document chunk   (default: 4000)
+ *   MAX_PARALLEL_REQUESTS — max concurrent OpenAI calls (default: 5)
+ *
+ * ─── Caching ──────────────────────────────────────────────────────────────
+ *
+ * Results are cached in-memory for 5 minutes. Repeated identical calls within
+ * the same Worker instance return cached: true and cost zero tokens.
  */
 
 export interface Env {
