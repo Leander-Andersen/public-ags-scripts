@@ -1,5 +1,5 @@
 /**
- * gpt-worker v2 — Cloudflare Workers MCP server
+ * gpt-worker v3 — Cloudflare Workers MCP server
  *
  * Exposes two MCP tools that let Claude (the overseer) delegate grunt work to
  * GPT as a parallel worker pool. Claude decides strategy, GPT processes, Claude
@@ -9,22 +9,26 @@
  *
  * ─── Tools ────────────────────────────────────────────────────────────────
  *
- * gpt_search(queries, focus, language?)
+ * gpt_search(queries, focus, language?, format?, schema?)
  *   Web search via OpenAI Responses API (web_search_preview).
- *   - queries:  string[]  — all run in parallel
- *   - focus:    string    — guides what GPT extracts
- *   - language: string    — optional, e.g. "Norwegian" (default: "English")
+ *   - queries:  string[]               — all run in parallel
+ *   - focus:    string                 — guides what GPT extracts
+ *   - language: string                 — optional, e.g. "Norwegian" (default: "English")
+ *   - format:   "text" | "json"        — prose or structured output (default: "text")
+ *   - schema:   object                 — JSON Schema, required when format="json"
  *   Returns: [{status, query, findings, relevance, sources_used, tokens_used, cached}]
  *   relevance: "high" | "medium" | "low" | "unknown"
  *
- * gpt_process(sources, focus, depth?, format?, json_schema?)
+ * gpt_process(sources, focus, language?, depth?, format?, schema?)
  *   Load + summarize URLs or raw text via OpenAI Chat Completions.
- *   - sources:     string[]                — URLs or raw text, all in parallel
- *   - focus:       string                  — what to extract
- *   - depth:       "skim" | "detailed"     — brief vs thorough (default: "detailed")
- *   - format:      "text" | "json"         — prose or structured output (default: "text")
- *   - json_schema: object                  — required when format="json"
- *   Returns: [{status, source, summary, chunk_count, tokens_used, cached}]
+ *   - sources:  string[]               — URLs or raw text, all in parallel
+ *   - focus:    string                 — what to extract
+ *   - language: string                 — optional, e.g. "Norwegian" (default: "English")
+ *   - depth:    "skim"|"normal"|"detailed" — summarization thoroughness (default: "normal")
+ *   - format:   "text" | "json"        — prose or structured output (default: "text")
+ *   - schema:   object                 — JSON Schema, required when format="json"
+ *   Returns: [{status, source, summary, chunk_count, tokens_used, cached, error?}]
+ *   status: "ok" | "fetch_failed" | "empty" | "timeout" | "error"
  *
  * ─── Configuration ────────────────────────────────────────────────────────
  *
@@ -79,23 +83,25 @@ interface SearchResult {
   sources_used: string[];
   tokens_used: number;
   cached: boolean;
+  error?: string;
 }
 
 interface ProcessResult {
-  status: "ok" | "error";
+  status: "ok" | "fetch_failed" | "empty" | "timeout" | "error";
   source: string;
   summary: string;
   chunk_count: number;
   tokens_used: number;
   cached: boolean;
+  error?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Simple in-request cache (deduplicates repeated calls within one invocation)
+// Cache
 // ---------------------------------------------------------------------------
 
 const _cache = new Map<string, { value: unknown; ts: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 function cacheGet<T>(key: string): T | null {
   const entry = _cache.get(key);
@@ -109,6 +115,15 @@ function cacheSet(key: string, value: unknown): void {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Strip markdown code fences from a string (e.g. ```json ... ``` → ...) */
+function stripFences(s: string): string {
+  return s.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/i, "").trim();
+}
+
+// ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
 
@@ -119,9 +134,10 @@ const TOOLS = [
       "Search the web using GPT with built-in web search.",
       "Pass ALL queries you want to run at once — they execute in parallel.",
       "focus describes what you ultimately want to find so GPT knows what to extract.",
-      "language optionally biases results (e.g. 'Norwegian', 'English') — defaults to English.",
+      "language optionally biases results e.g. 'Norwegian', 'English' (default: English).",
+      "format='json' + schema returns structured data instead of prose — useful in pipelines.",
       "Call again with refined or broader queries if initial results are thin or off-topic.",
-      "Returns an array of {status, query, findings, relevance, sources_used, tokens_used, cached}.",
+      "Returns [{status, query, findings, relevance, sources_used, tokens_used, cached}].",
       "relevance is high/medium/low — use it to decide whether to dig deeper.",
     ].join(" "),
     inputSchema: {
@@ -138,7 +154,16 @@ const TOOLS = [
         },
         language: {
           type: "string",
-          description: "Language bias for search results e.g. 'Norwegian', 'English' (optional, defaults to English)",
+          description: "Language bias e.g. 'Norwegian', 'English' (optional, default: English)",
+        },
+        format: {
+          type: "string",
+          enum: ["text", "json"],
+          description: "text = freeform prose, json = structured output (default: text)",
+        },
+        schema: {
+          type: "object",
+          description: "JSON Schema for structured output when format=json",
         },
       },
       required: ["queries", "focus"],
@@ -148,12 +173,13 @@ const TOOLS = [
     name: "gpt_process",
     description: [
       "Load and summarize URLs or raw text using GPT.",
-      "Each source is chunked, each chunk summarised with the given focus, then consolidated.",
-      "All sources processed in parallel.",
-      "Accepts URLs (fetched automatically) or raw text strings — paste any size.",
-      "depth controls summarization: 'skim' = fast/brief, 'detailed' = thorough (default: 'detailed').",
-      "format controls output: 'text' = freeform summary, 'json' = structured (requires json_schema).",
-      "Returns an array of {status, source, summary, chunk_count, tokens_used, cached}.",
+      "Each source is chunked, summarised per chunk focused on goal, then consolidated.",
+      "All sources processed in parallel. Accepts URLs or raw text — paste any size.",
+      "language optionally biases summarization e.g. 'Norwegian' (default: English).",
+      "depth: skim=fast/brief, normal=balanced, detailed=thorough (default: normal).",
+      "format='json' + schema returns structured data — makes output composable in pipelines.",
+      "Returns [{status, source, summary, chunk_count, tokens_used, cached, error?}].",
+      "status: ok | fetch_failed | empty | timeout | error — never fails silently.",
       "Call again with a more specific focus if summaries miss key details.",
     ].join(" "),
     inputSchema: {
@@ -168,19 +194,23 @@ const TOOLS = [
           type: "string",
           description: "What to extract — irrelevant content is filtered during summarisation",
         },
+        language: {
+          type: "string",
+          description: "Language bias for summarization e.g. 'Norwegian', 'English' (optional, default: English)",
+        },
         depth: {
           type: "string",
-          enum: ["skim", "detailed"],
-          description: "skim = fast brief summary, detailed = thorough extraction (default: detailed)",
+          enum: ["skim", "normal", "detailed"],
+          description: "skim=fast/brief, normal=balanced, detailed=thorough (default: normal)",
         },
         format: {
           type: "string",
           enum: ["text", "json"],
           description: "text = freeform prose, json = structured output (default: text)",
         },
-        json_schema: {
+        schema: {
           type: "object",
-          description: "JSON schema for structured output when format=json. E.g. {type:'object', properties:{name:{type:'string'}, ...}}",
+          description: "JSON Schema for structured output when format=json",
         },
       },
       required: ["sources", "focus"],
@@ -260,7 +290,7 @@ async function dispatchRpc(req: RpcRequest, env: Env): Promise<RpcResponse> {
           result: {
             protocolVersion: "2025-03-26",
             capabilities: { tools: {} },
-            serverInfo: { name: "gpt-worker", version: "2.0.0" },
+            serverInfo: { name: "gpt-worker", version: "3.0.0" },
           },
         };
 
@@ -281,6 +311,8 @@ async function dispatchRpc(req: RpcRequest, env: Env): Promise<RpcResponse> {
             args.queries as string[],
             args.focus as string,
             (args.language as string) ?? "English",
+            (args.format as "text" | "json") ?? "text",
+            (args.schema as Record<string, unknown>) ?? null,
             env.OPENAI_API_KEY,
             model,
             maxParallel
@@ -295,9 +327,10 @@ async function dispatchRpc(req: RpcRequest, env: Env): Promise<RpcResponse> {
           const result = await gptProcess(
             args.sources as string[],
             args.focus as string,
-            (args.depth as "skim" | "detailed") ?? "detailed",
+            (args.language as string) ?? "English",
+            (args.depth as "skim" | "normal" | "detailed") ?? "normal",
             (args.format as "text" | "json") ?? "text",
-            (args.json_schema as Record<string, unknown>) ?? null,
+            (args.schema as Record<string, unknown>) ?? null,
             env.OPENAI_API_KEY,
             model,
             chunkSize,
@@ -337,19 +370,25 @@ async function gptSearch(
   queries: string[],
   focus: string,
   language: string,
+  format: "text" | "json",
+  schema: Record<string, unknown> | null,
   apiKey: string,
   model: string,
   maxParallel: number
 ): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
 
+  const schemaInstruction = format === "json" && schema
+    ? `Return ONLY valid JSON matching this schema (no markdown fences): ${JSON.stringify(schema)}`
+    : "";
+
   for (let i = 0; i < queries.length; i += maxParallel) {
     const batch = queries.slice(i, i + maxParallel);
     const batchResults = await Promise.all(
       batch.map(async (query): Promise<SearchResult> => {
-        const cacheKey = `search:${model}:${language}:${focus}:${query}`;
-        const cached = cacheGet<SearchResult>(cacheKey);
-        if (cached) return { ...cached, cached: true };
+        const cacheKey = `search:${model}:${language}:${format}:${focus}:${query}`;
+        const hit = cacheGet<SearchResult>(cacheKey);
+        if (hit) return { ...hit, cached: true };
 
         try {
           const resp = await fetch("https://api.openai.com/v1/responses", {
@@ -362,10 +401,12 @@ async function gptSearch(
                 `You are a research assistant. Language preference: ${language}.`,
                 `Focus goal: ${focus}`,
                 `Search query: ${query}`,
-                `Return a concise TL;DR of the most relevant findings.`,
+                format === "json" && schema
+                  ? schemaInstruction
+                  : "Return a concise TL;DR of the most relevant findings.",
                 `End your response with a relevance rating on its own line: RELEVANCE: high | medium | low`,
-                `Explain briefly why you chose that rating.`,
-              ].join("\n\n"),
+                `Briefly explain why.`,
+              ].filter(Boolean).join("\n\n"),
             }),
           });
 
@@ -378,7 +419,7 @@ async function gptSearch(
               content?: Array<{
                 type: string;
                 text?: string;
-                annotations?: Array<{ type?: string; url?: string; title?: string }>;
+                annotations?: Array<{ url?: string }>;
               }>;
             }>;
           };
@@ -399,15 +440,15 @@ async function gptSearch(
             }
           }
 
-          // Extract relevance rating from the end of the response
           let relevance: "high" | "medium" | "low" | "unknown" = "unknown";
           let findings = rawFindings.trim();
           const relevanceMatch = findings.match(/RELEVANCE:\s*(high|medium|low)/i);
           if (relevanceMatch) {
             relevance = relevanceMatch[1].toLowerCase() as "high" | "medium" | "low";
-            // Keep the relevance explanation but mark it clearly
             findings = findings.replace(/RELEVANCE:\s*(high|medium|low)/i, `[Relevance: ${relevance}]`).trim();
           }
+
+          if (format === "json") findings = stripFences(findings);
 
           const result: SearchResult = {
             status: "ok",
@@ -425,11 +466,12 @@ async function gptSearch(
           return {
             status: "error",
             query,
-            findings: String(e),
+            findings: "",
             relevance: "unknown",
             sources_used: [],
             tokens_used: 0,
             cached: false,
+            error: String(e),
           };
         }
       })
@@ -447,9 +489,10 @@ async function gptSearch(
 async function gptProcess(
   sources: string[],
   focus: string,
-  depth: "skim" | "detailed",
+  language: string,
+  depth: "skim" | "normal" | "detailed",
   format: "text" | "json",
-  jsonSchema: Record<string, unknown> | null,
+  schema: Record<string, unknown> | null,
   apiKey: string,
   model: string,
   chunkSize: number,
@@ -457,28 +500,53 @@ async function gptProcess(
 ): Promise<ProcessResult[]> {
   const results: ProcessResult[] = [];
 
-  const systemPrompt = depth === "skim"
-    ? `You are a fast summarizer. Give a brief 2-3 sentence summary of what is relevant to: ${focus}. Be extremely concise.`
-    : `You are a precise analyst. Extract all details relevant to: ${focus}. Include specifics, numbers, names, dates. Omit only clearly unrelated content.`;
+  const depthPrompts = {
+    skim: {
+      chunk: `You are a fast summarizer. Language: ${language}. Give a brief 2-3 sentence summary of what is relevant to: ${focus}. Be extremely concise.`,
+      consolidate: `Combine these brief summaries into one short paragraph focused on: ${focus}. Language: ${language}.`,
+      maxTokens: 256,
+    },
+    normal: {
+      chunk: `You are a precise summarizer. Language: ${language}. Extract the key points relevant to: ${focus}. Be concise but complete.`,
+      consolidate: `Consolidate these summaries into a clear, well-structured summary focused on: ${focus}. Language: ${language}. Remove repetition.`,
+      maxTokens: 512,
+    },
+    detailed: {
+      chunk: `You are a precise analyst. Language: ${language}. Extract ALL details relevant to: ${focus}. Include specifics, numbers, names, dates. Omit only clearly unrelated content.`,
+      consolidate: `Consolidate these detailed summaries into one comprehensive summary focused on: ${focus}. Language: ${language}. Preserve all important details. Remove only repetition.`,
+      maxTokens: 1024,
+    },
+  };
 
-  const consolidatePrompt = depth === "skim"
-    ? `Combine these brief summaries into one short paragraph focused on: ${focus}.`
-    : `Consolidate these detailed summaries into one comprehensive summary focused on: ${focus}. Preserve all important details. Remove only repetition.`;
+  const dp = depthPrompts[depth];
 
   for (let i = 0; i < sources.length; i += maxParallel) {
     const batch = sources.slice(i, i + maxParallel);
     const batchResults = await Promise.all(
       batch.map(async (source): Promise<ProcessResult> => {
-        const cacheKey = `process:${model}:${depth}:${format}:${focus}:${source.slice(0, 200)}`;
-        const cached = cacheGet<ProcessResult>(cacheKey);
-        if (cached) return { ...cached, cached: true };
+        const cacheKey = `process:${model}:${language}:${depth}:${format}:${focus}:${source.slice(0, 200)}`;
+        const hit = cacheGet<ProcessResult>(cacheKey);
+        if (hit) return { ...hit, cached: true };
+
+        const sourceLabel = source.startsWith("http") ? source : source.slice(0, 80) + (source.length > 80 ? "…" : "");
 
         try {
           let text: string;
 
           if (source.startsWith("http://") || source.startsWith("https://")) {
-            const resp = await fetch(source, { headers: { "User-Agent": "gpt-worker-mcp/1.0" } });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${source}`);
+            let resp: Response;
+            try {
+              resp = await fetch(source, {
+                headers: { "User-Agent": "gpt-worker-mcp/1.0" },
+                signal: AbortSignal.timeout(15000),
+              });
+            } catch (e) {
+              const isTimeout = String(e).includes("timeout") || String(e).includes("TimeoutError");
+              return { status: isTimeout ? "timeout" : "fetch_failed", source: sourceLabel, summary: "", chunk_count: 0, tokens_used: 0, cached: false, error: String(e) };
+            }
+            if (!resp.ok) {
+              return { status: "fetch_failed", source: sourceLabel, summary: "", chunk_count: 0, tokens_used: 0, cached: false, error: `HTTP ${resp.status}` };
+            }
             const ct = resp.headers.get("content-type") ?? "";
             const raw = await resp.text();
             text = ct.includes("html") ? raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : raw;
@@ -486,17 +554,20 @@ async function gptProcess(
             text = source;
           }
 
+          if (!text.trim()) {
+            return { status: "empty", source: sourceLabel, summary: "", chunk_count: 0, tokens_used: 0, cached: false, error: "Source produced no text content" };
+          }
+
           const chunkChars = chunkSize * 4;
           const chunks: string[] = [];
           for (let j = 0; j < text.length; j += chunkChars) chunks.push(text.slice(j, j + chunkChars));
-          if (chunks.length === 0) chunks.push(text);
 
           let totalTokens = 0;
 
-          const chat = async (messages: Array<{ role: string; content: string }>, useJsonSchema = false) => {
-            const body: Record<string, unknown> = { model, messages, max_completion_tokens: depth === "skim" ? 256 : 1024 };
-            if (useJsonSchema && jsonSchema) {
-              body.response_format = { type: "json_schema", json_schema: { name: "output", schema: jsonSchema, strict: true } };
+          const chat = async (messages: Array<{ role: string; content: string }>, useSchema = false) => {
+            const body: Record<string, unknown> = { model, messages, max_completion_tokens: dp.maxTokens };
+            if (useSchema && schema) {
+              body.response_format = { type: "json_schema", json_schema: { name: "output", schema, strict: true } };
             }
             const r = await fetch("https://api.openai.com/v1/chat/completions", {
               method: "POST",
@@ -512,30 +583,32 @@ async function gptProcess(
             return d.choices[0].message.content ?? "";
           };
 
-          // For json format, only apply schema on the final consolidation step
           const chunkSummaries = await Promise.all(
             chunks.map((chunk) => chat([
-              { role: "system", content: systemPrompt },
+              { role: "system", content: dp.chunk },
               { role: "user", content: chunk },
             ]))
           );
 
-          const summary = chunkSummaries.length === 1
+          const finalSystemPrompt = format === "json" && schema
+            ? `${dp.consolidate} Return ONLY valid JSON matching this schema (no markdown fences): ${JSON.stringify(schema)}`
+            : dp.consolidate;
+
+          const rawSummary = chunkSummaries.length === 1
             ? (format === "json" ? await chat([
-                { role: "system", content: `${consolidatePrompt} Return valid JSON matching the requested schema.` },
+                { role: "system", content: finalSystemPrompt },
                 { role: "user", content: chunkSummaries[0] },
-              ], true)
-              : chunkSummaries[0])
+              ], true) : chunkSummaries[0])
             : await chat([
-                { role: "system", content: format === "json"
-                  ? `${consolidatePrompt} Return valid JSON matching the requested schema.`
-                  : consolidatePrompt },
+                { role: "system", content: finalSystemPrompt },
                 { role: "user", content: chunkSummaries.join("\n\n---\n\n") },
               ], format === "json");
 
+          const summary = format === "json" ? stripFences(rawSummary) : rawSummary;
+
           const result: ProcessResult = {
             status: "ok",
-            source: source.startsWith("http") ? source : source.slice(0, 80) + (source.length > 80 ? "…" : ""),
+            source: sourceLabel,
             summary,
             chunk_count: chunks.length,
             tokens_used: totalTokens,
@@ -547,11 +620,12 @@ async function gptProcess(
         } catch (e) {
           return {
             status: "error",
-            source: source.startsWith("http") ? source : source.slice(0, 80),
-            summary: String(e),
+            source: sourceLabel,
+            summary: "",
             chunk_count: 0,
             tokens_used: 0,
             cached: false,
+            error: String(e),
           };
         }
       })
