@@ -1,0 +1,22 @@
+name = "gpt-worker-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Durable Objects backing the MCP agent (handles SSE connections)
+[[durable_objects.bindings]]
+name = "MCP_OBJECT"
+class_name = "GptWorkerMCP"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GptWorkerMCP"]
+
+# Non-secret config — override with wrangler.toml or environment
+[vars]
+GPT_MODEL = "gpt-5.4"
+CHUNK_SIZE = "4000"
+MAX_PARALLEL_REQUESTS = "5"
+
+# OPENAI_API_KEY must be set as a secret, never in vars:
+#   wrangler secret put OPENAI_API_KEY
