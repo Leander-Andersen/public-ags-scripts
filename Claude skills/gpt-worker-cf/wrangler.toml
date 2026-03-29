@@ -10,7 +10,7 @@ class_name = "GptWorkerMCP"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["GptWorkerMCP"]
+new_sqlite_classes = ["GptWorkerMCP"]
 
 # Non-secret config — override with wrangler.toml or environment
 [vars]
