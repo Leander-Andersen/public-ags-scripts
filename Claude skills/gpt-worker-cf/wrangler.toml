@@ -2,6 +2,11 @@ name = "gpt-worker-mcp"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
+# Remove the Durable Object class from the previous deployment
+[[migrations]]
+tag = "v2"
+deleted_classes = ["GptWorkerMCP"]
+
 [vars]
 GPT_MODEL = "gpt-5.4"
 CHUNK_SIZE = "4000"
