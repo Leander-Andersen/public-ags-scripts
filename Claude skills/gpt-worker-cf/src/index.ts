@@ -357,7 +357,7 @@ async function gptProcess(
             const r = await fetch("https://api.openai.com/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages, max_tokens: 1024 }),
+              body: JSON.stringify({ model, messages, max_completion_tokens: 1024 }),
             });
             if (!r.ok) throw new Error(`OpenAI ${r.status}: ${await r.text()}`);
             const d = (await r.json()) as { choices: Array<{ message: { content: string } }> };
