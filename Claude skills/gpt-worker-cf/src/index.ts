@@ -308,8 +308,7 @@ async function handleMcp(request: Request, env: Env, processingMode = false): Pr
 
 async function dispatchRpc(req: RpcRequest, env: Env, processingMode = false): Promise<RpcResponse> {
   const model = env.GPT_MODEL ?? "gpt-5.4";
-  const chunkSize = parseInt(env.CHUNK_SIZE ?? "4000", 10);
-  const maxParallel = parseInt(env.MAX_PARALLEL_REQUESTS ?? "5", 10);
+  const chunkSize = parseInt(env.CHUNK_SIZE ?? "32000", 10);
 
   try {
     switch (req.method) {
@@ -344,7 +343,6 @@ async function dispatchRpc(req: RpcRequest, env: Env, processingMode = false): P
             (args.schema as Record<string, unknown>) ?? null,
             env.OPENAI_API_KEY,
             model,
-            maxParallel
           );
           return {
             jsonrpc: "2.0", id: req.id,
@@ -363,7 +361,6 @@ async function dispatchRpc(req: RpcRequest, env: Env, processingMode = false): P
             env.OPENAI_API_KEY,
             model,
             chunkSize,
-            maxParallel
           );
           return {
             jsonrpc: "2.0", id: req.id,
@@ -403,18 +400,13 @@ async function gptSearch(
   schema: Record<string, unknown> | null,
   apiKey: string,
   model: string,
-  maxParallel: number
 ): Promise<SearchResult[]> {
-  const results: SearchResult[] = [];
-
   const schemaInstruction = format === "json" && schema
     ? `Return ONLY valid JSON matching this schema (no markdown fences): ${JSON.stringify(schema)}`
     : "";
 
-  for (let i = 0; i < queries.length; i += maxParallel) {
-    const batch = queries.slice(i, i + maxParallel);
-    const batchResults = await Promise.all(
-      batch.map(async (query): Promise<SearchResult> => {
+  return Promise.all(
+    queries.map(async (query): Promise<SearchResult> => {
         const cacheKey = `search:${model}:${language}:${format}:${focus}:${query}`;
         const hit = cacheGet<SearchResult>(cacheKey);
         if (hit) return { ...hit, cached: true };
@@ -504,11 +496,7 @@ async function gptSearch(
           };
         }
       })
-    );
-    results.push(...batchResults);
-  }
-
-  return results;
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -525,34 +513,29 @@ async function gptProcess(
   apiKey: string,
   model: string,
   chunkSize: number,
-  maxParallel: number
 ): Promise<ProcessResult[]> {
-  const results: ProcessResult[] = [];
-
   const depthPrompts = {
     skim: {
       chunk: `You are a fast summarizer. Language: ${language}. Give a brief 2-3 sentence summary of what is relevant to: ${focus}. Be extremely concise.`,
       consolidate: `Combine these brief summaries into one short paragraph focused on: ${focus}. Language: ${language}.`,
-      maxTokens: 256,
+      maxTokens: 512,
     },
     normal: {
       chunk: `You are a precise summarizer. Language: ${language}. Extract the key points relevant to: ${focus}. Be concise but complete.`,
       consolidate: `Consolidate these summaries into a clear, well-structured summary focused on: ${focus}. Language: ${language}. Remove repetition.`,
-      maxTokens: 512,
+      maxTokens: 2048,
     },
     detailed: {
       chunk: `You are a precise analyst. Language: ${language}. Extract ALL details relevant to: ${focus}. Include specifics, numbers, names, dates. Omit only clearly unrelated content.`,
       consolidate: `Consolidate these detailed summaries into one comprehensive summary focused on: ${focus}. Language: ${language}. Preserve all important details. Remove only repetition.`,
-      maxTokens: 1024,
+      maxTokens: 8192,
     },
   };
 
   const dp = depthPrompts[depth];
 
-  for (let i = 0; i < sources.length; i += maxParallel) {
-    const batch = sources.slice(i, i + maxParallel);
-    const batchResults = await Promise.all(
-      batch.map(async (source): Promise<ProcessResult> => {
+  return Promise.all(
+    sources.map(async (source): Promise<ProcessResult> => {
         const cacheKey = `process:${model}:${language}:${depth}:${format}:${focus}:${source.slice(0, 200)}`;
         const hit = cacheGet<ProcessResult>(cacheKey);
         if (hit) return { ...hit, cached: true };
@@ -635,6 +618,10 @@ async function gptProcess(
 
           const summary = format === "json" ? stripFences(rawSummary) : rawSummary;
 
+          if (!summary.trim()) {
+            return { status: "empty", source: sourceLabel, summary: "", chunk_count: chunks.length, tokens_used: totalTokens, cached: false, error: "GPT returned empty content — likely hit token limit on a large chunk" };
+          }
+
           const result: ProcessResult = {
             status: "ok",
             source: sourceLabel,
@@ -658,9 +645,5 @@ async function gptProcess(
           };
         }
       })
-    );
-    results.push(...batchResults);
-  }
-
-  return results;
+  );
 }
