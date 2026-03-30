@@ -251,19 +251,27 @@ export default {
       return new Response("Not Found", { status: 404 });
     }
 
-    if (url.pathname === "/mcp") {
-      if (request.method === "POST") return handleMcp(request, env);
+    // Two modes — add both to claude.ai Settings → Integrations and toggle as needed:
+    //   /mcp          Research mode    — gpt_search + gpt_process
+    //   /mcp/process  Processing mode  — gpt_process only (no web search tokens spent)
+    const isProcessingMode = url.pathname === "/mcp/process";
+    const isMcpEndpoint = url.pathname === "/mcp" || isProcessingMode;
+
+    if (isMcpEndpoint) {
+      if (request.method === "POST") return handleMcp(request, env, isProcessingMode);
       if (request.method === "GET") {
-        return new Response("gpt-worker MCP server is running. POST to this endpoint.", {
+        const mode = isProcessingMode ? "Processing mode (gpt_process only)" : "Research mode (gpt_search + gpt_process)";
+        return new Response(`gpt-worker MCP server — ${mode}. POST to this endpoint.`, {
           status: 200, headers: { "Content-Type": "text/plain" },
         });
       }
       return new Response("Method Not Allowed", { status: 405 });
     }
 
-    return new Response("gpt-worker MCP server — POST to /mcp", {
-      status: 200, headers: { "Content-Type": "text/plain" },
-    });
+    return new Response(
+      "gpt-worker MCP server\n  /mcp          Research mode    (gpt_search + gpt_process)\n  /mcp/process  Processing mode  (gpt_process only)",
+      { status: 200, headers: { "Content-Type": "text/plain" } }
+    );
   },
 };
 
@@ -271,7 +279,7 @@ export default {
 // MCP request handler
 // ---------------------------------------------------------------------------
 
-async function handleMcp(request: Request, env: Env): Promise<Response> {
+async function handleMcp(request: Request, env: Env, processingMode = false): Promise<Response> {
   let body: RpcRequest | RpcRequest[];
   try {
     body = (await request.json()) as RpcRequest | RpcRequest[];
@@ -288,7 +296,7 @@ async function handleMcp(request: Request, env: Env): Promise<Response> {
 
   for (const req of requests) {
     if (req.id === undefined || req.id === null) continue;
-    responses.push(await dispatchRpc(req, env));
+    responses.push(await dispatchRpc(req, env, processingMode));
   }
 
   if (responses.length === 0) return new Response(null, { status: 204 });
@@ -298,7 +306,7 @@ async function handleMcp(request: Request, env: Env): Promise<Response> {
   });
 }
 
-async function dispatchRpc(req: RpcRequest, env: Env): Promise<RpcResponse> {
+async function dispatchRpc(req: RpcRequest, env: Env, processingMode = false): Promise<RpcResponse> {
   const model = env.GPT_MODEL ?? "gpt-5.4";
   const chunkSize = parseInt(env.CHUNK_SIZE ?? "4000", 10);
   const maxParallel = parseInt(env.MAX_PARALLEL_REQUESTS ?? "5", 10);
@@ -319,7 +327,7 @@ async function dispatchRpc(req: RpcRequest, env: Env): Promise<RpcResponse> {
         return { jsonrpc: "2.0", id: req.id, result: {} };
 
       case "tools/list":
-        return { jsonrpc: "2.0", id: req.id, result: { tools: TOOLS } };
+        return { jsonrpc: "2.0", id: req.id, result: { tools: processingMode ? TOOLS.filter(t => t.name === "gpt_process") : TOOLS } };
 
       case "tools/call": {
         const { name, arguments: args } = req.params as {
