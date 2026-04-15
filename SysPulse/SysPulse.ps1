@@ -64,7 +64,7 @@ FUNCTIONS (by category)
   Power Management  : Show-PowerButtonActions, Show-LidCloseActions,
                       Show-CriticalBatteryActions, Show-PowerSlider
   Battery & Thermal : Get-ChargePercent, Get-Temperature
-  Hardware          : Get-BluetoothInfo, Show-DeviceManagerStatus
+  Hardware          : Get-BluetoothInfo, Show-DeviceManagerStatus, Get-DiskSmartData
   Memory            : Get-MemoryDetails
   Display           : Get-DisplayScale, Get-DSCStatus
   Applications      : Get-TeamsVersion, Get-OfficeVersion, Get-ZoomVersion,
@@ -633,6 +633,172 @@ function Get-MemoryDetails {
 }
 
 # -----------------------------------------------------------------------------
+#  SECTION 8b - STORAGE HEALTH & SMART DATA
+# -----------------------------------------------------------------------------
+
+function Get-SmartAttribute {
+    <#
+    .SYNOPSIS  Parses one SMART attribute from an MSStorageDriver_ATAPISmartData
+               VendorSpecific byte array.  Returns $null if not found.
+               Structure: 2-byte header, then 30 x 12-byte attribute entries.
+               Each entry: [0] ID, [1-2] flags, [3] normalized, [4] worst,
+               [5-10] raw value (48-bit little-endian), [11] reserved.
+    #>
+    param([byte[]]$VendorSpecific, [byte]$AttributeId)
+    if (-not $VendorSpecific -or $VendorSpecific.Count -lt 14) { return $null }
+    for ($i = 2; ($i + 11) -lt $VendorSpecific.Count -and $i -lt 362; $i += 12) {
+        if ($VendorSpecific[$i] -eq $AttributeId) {
+            $raw = [long]$VendorSpecific[$i + 5]              +
+                   ([long]$VendorSpecific[$i + 6]  -shl  8)  +
+                   ([long]$VendorSpecific[$i + 7]  -shl 16)  +
+                   ([long]$VendorSpecific[$i + 8]  -shl 24)  +
+                   ([long]$VendorSpecific[$i + 9]  -shl 32)  +
+                   ([long]$VendorSpecific[$i + 10] -shl 40)
+            return [PSCustomObject]@{
+                Raw        = $raw
+                Normalized = [int]$VendorSpecific[$i + 3]
+                Worst      = [int]$VendorSpecific[$i + 4]
+            }
+        }
+    }
+    return $null
+}
+
+function Format-LbaBytes {
+    <#
+    .SYNOPSIS  Converts a raw LBA count (512-byte sectors) to a readable string.
+               Returns '-' for zero or negligible values.
+    #>
+    param([long]$LbaCount)
+    $bytes = $LbaCount * 512
+    if     ($bytes -ge 1TB) { return "$([math]::Round($bytes / 1TB, 2)) TB" }
+    elseif ($bytes -ge 1GB) { return "$([math]::Round($bytes / 1GB,  1)) GB" }
+    else                    { return '-' }
+}
+
+function Get-DiskSmartData {
+    <#
+    .SYNOPSIS
+        Reports physical disk health and extended SMART data for all drives.
+        Combines two built-in Windows sources - no external tools required:
+          - Get-StorageReliabilityCounter : temp, power-on hours, error counts
+          - MSStorageDriver_ATAPISmartData (WMI, ATA/SATA only) : total data
+            written/read, reallocated/pending/uncorrectable sector counts
+        Wear detection tries three sources in order:
+          1. Get-StorageReliabilityCounter.Wear  (works when drivers expose it)
+          2. Raw SMART normalized value for attrs E9/E7/CA/A9/D1  (SATA SSDs)
+          3. Clearly labels NVMe drives where this data path does not apply
+    #>
+    Write-Host "`n  -- Disk Health & SMART Data ------------------------" -ForegroundColor Yellow
+    $disks = Get-PhysicalDisk -ErrorAction SilentlyContinue
+    if (-not $disks) {
+        Write-Host "  No physical disks found."
+        return
+    }
+
+    # Load raw SMART WMI data once (ATA/SATA only - NVMe not exposed here)
+    $allSmartWmi = Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_ATAPISmartData -ErrorAction SilentlyContinue
+
+    $results = foreach ($disk in $disks) {
+        $rel = $disk | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
+
+        # -- Resolve ATA/SATA SMART entry for this disk --------------------------
+        # InstanceName ends with _N where N matches DeviceId (disk number)
+        $vs         = $null
+        $smartEntry = $null
+        if ($allSmartWmi) {
+            $diskNum    = [int]$disk.DeviceId
+            $smartEntry = $allSmartWmi |
+                          Where-Object { $_.InstanceName -match "_${diskNum}$" } |
+                          Select-Object -First 1
+            if ($smartEntry) { $vs = $smartEntry.VendorSpecific }
+        }
+
+        # -- Wear / health -------------------------------------------------------
+        # Priority 1: Get-StorageReliabilityCounter.Wear (% worn, 0=new, 100=dead)
+        #             Many drivers return 0 even on used drives; treat 0 as absent.
+        # Priority 2: SMART normalized value (100=new, lower=more worn) for SATA:
+        #   E9 (233) Media Wearout Indicator  - Intel, SanDisk, many OEM
+        #   E7 (231) SSD Life Left            - Intel, Crucial
+        #   CA (202) % Lifetime Remaining     - various
+        #   A9 (169) Remaining Life           - SanDisk, some WD
+        #   D1 (209) Remaining Life %         - Samsung (older)
+        # NVMe: health log requires NVMe log page 0x02 which is not exposed
+        #       through the Windows ATA SMART path and Wear is driver-dependent.
+        $wearStr = 'N/A'
+        if ($disk.MediaType -eq 'SSD') {
+            if ($rel -and $rel.Wear -gt 0) {
+                $worn    = [int]$rel.Wear
+                $wearStr = "$(100 - $worn)% remaining  ($worn% worn)"
+            } elseif ($disk.BusType -ne 'NVMe' -and $vs) {
+                foreach ($wid in @(0xE9, 0xE7, 0xCA, 0xA9, 0xD1)) {
+                    $wa = Get-SmartAttribute -VendorSpecific $vs -AttributeId $wid
+                    if ($wa -and $wa.Normalized -gt 0 -and $wa.Normalized -le 100) {
+                        $worn    = 100 - $wa.Normalized
+                        $wearStr = "$($wa.Normalized)% remaining  ($worn% worn)"
+                        break
+                    }
+                }
+            }
+            if ($wearStr -eq 'N/A' -and $disk.BusType -eq 'NVMe') {
+                $wearStr = 'N/A (NVMe)'
+            }
+        }
+
+        # -- Raw SMART sector / byte counters (ATA/SATA only) --------------------
+        # Attrs 241/242 (Total LBAs Written/Read) are supported by many SSDs but
+        # not all  -  vendor SSDs (WD Blue, etc.) often omit them.
+        # NVMe drives do not use ATA SMART; their totals require NVMe log pages
+        # which are not accessible via this WMI class.
+        $tbWritten = '-'; $tbRead = '-'
+        $reallocated = '-'; $pending = '-'; $uncorrect = '-'
+
+        if ($vs) {
+            $a5   = Get-SmartAttribute -VendorSpecific $vs -AttributeId 5
+            $a197 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 197
+            $a198 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 198
+            $a241 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 241
+            $a242 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 242
+
+            if ($a5)                        { $reallocated = $a5.Raw }
+            if ($a197)                      { $pending     = $a197.Raw }
+            if ($a198)                      { $uncorrect   = $a198.Raw }
+            if ($a241 -and $a241.Raw -gt 0) { $tbWritten   = Format-LbaBytes $a241.Raw }
+            if ($a242 -and $a242.Raw -gt 0) { $tbRead      = Format-LbaBytes $a242.Raw }
+        } elseif ($disk.BusType -eq 'NVMe') {
+            $tbWritten = 'N/A (NVMe)'
+            $tbRead    = 'N/A (NVMe)'
+        }
+
+        [PSCustomObject]@{
+            Drive           = $disk.FriendlyName
+            Type            = $disk.MediaType
+            'Size GB'       = [math]::Round($disk.Size / 1GB, 1)
+            Health          = $disk.HealthStatus
+            Bus             = $disk.BusType
+            'Wear'          = $wearStr
+            'Temp C'        = if ($rel -and $rel.Temperature)                { $rel.Temperature }   else { '-' }
+            'Power-On Hrs'  = if ($rel -and $rel.PowerOnHours)               { $rel.PowerOnHours }  else { '-' }
+            'Total Written' = $tbWritten
+            'Total Read'    = $tbRead
+            'Reallocated'   = $reallocated
+            'Pending Sect'  = $pending
+            'Uncorrectable' = $uncorrect
+            'Read Errors'   = if ($rel -and $null -ne $rel.ReadErrorsTotal)  { $rel.ReadErrorsTotal }  else { '-' }
+            'Write Errors'  = if ($rel -and $null -ne $rel.WriteErrorsTotal) { $rel.WriteErrorsTotal } else { '-' }
+        }
+    }
+
+    # Split output into two tables so columns are readable
+    Write-Host ""
+    $results | Select-Object Drive, Type, 'Size GB', Health, Bus, Wear, 'Temp C', 'Power-On Hrs' |
+        Format-Table -AutoSize
+    $results | Select-Object Drive, 'Total Written', 'Total Read', Reallocated, 'Pending Sect', Uncorrectable, 'Read Errors', 'Write Errors' |
+        Format-Table -AutoSize
+    return $results
+}
+
+# -----------------------------------------------------------------------------
 #  SECTION 9  - DISPLAY & GRAPHICS
 # -----------------------------------------------------------------------------
 
@@ -640,7 +806,6 @@ function Get-DisplayScale {
     <#
     .SYNOPSIS  Reads the current Windows DPI / display scaling level.
     #>
-    $dpiKey  = 'HKCU:\Control Panel\Desktop\WindowMetrics'
     $applied = (Get-ItemProperty 'HKCU:\Control Panel\Desktop' -Name LogPixels -ErrorAction SilentlyContinue).LogPixels
     if (-not $applied) {
         $applied = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\FontDPI' -Name LogPixels -ErrorAction SilentlyContinue).LogPixels
@@ -1194,9 +1359,8 @@ function Invoke-HWDDriver {
     if (-not $OutFolder) { $OutFolder = New-OutputFolder }
     $sub = New-Item -ItemType Directory -Force -Path (Join-Path $OutFolder 'Hardware_Drivers')
 
-    Write-Host "  Running msinfo32 (system information)..."
-    $msinfoPath = Join-Path $sub 'SystemInfo.nfo'
-    Start-Process msinfo32 -ArgumentList "/nfo `"$msinfoPath`"" -Wait -WindowStyle Hidden
+    Write-Host "  Collecting system information..."
+    systeminfo | Set-Content (Join-Path $sub 'SystemInfo.txt') -Encoding UTF8
 
     Write-Host "  Collecting all PnP devices..."
     Get-PnpDevice | Select-Object Class, FriendlyName, Status, InstanceId |
@@ -1221,6 +1385,10 @@ function Invoke-HWDDriver {
         Format-Table -AutoSize | Out-String |
         Set-Content (Join-Path $sub 'PhysicalDisks.log') -Encoding UTF8
     Get-Disk | Select-Object * | Format-List | Out-String |
+        Add-Content (Join-Path $sub 'PhysicalDisks.log') -Encoding UTF8
+
+    Write-Host "  Collecting disk SMART / reliability data..."
+    Get-DiskSmartData 6>&1 | Out-String |
         Add-Content (Join-Path $sub 'PhysicalDisks.log') -Encoding UTF8
 
     Write-Host "  Hardware/Driver data written to: $sub" -ForegroundColor Green
@@ -1304,8 +1472,8 @@ function Find-KernelDumps {
     )
     $found = $false
     foreach ($p in $patterns) {
-        Get-ChildItem $p -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host ("  {0,-55} {1,10} MB  {2}" -f $_.FullName, [math]::Round($_.Length/1MB,1), $_.LastWriteTime)
+        foreach ($file in (Get-ChildItem $p -ErrorAction SilentlyContinue)) {
+            Write-Host ("  {0,-55} {1,10} MB  {2}" -f $file.FullName, [math]::Round($file.Length/1MB,1), $file.LastWriteTime)
             $found = $true
         }
     }
@@ -1575,10 +1743,78 @@ function Get-AllDiagnosticData {
     $sections.Add((_tbl 'memory' 'Memory Modules' @('Slot','Manufacturer','Part Number','Serial','Capacity','Speed','Type') $memRows))
 
     # -- Storage -------------------------------------------------------------
-    $diskRows = @(Get-PhysicalDisk | ForEach-Object {
-        ,@($_.FriendlyName, $_.MediaType, "$([math]::Round($_.Size/1GB,1)) GB", $_.HealthStatus, $_.BusType)
+    $allSmartWmiReport = Get-CimInstance -Namespace root\wmi -ClassName MSStorageDriver_ATAPISmartData -ErrorAction SilentlyContinue
+    $storageData = @(Get-PhysicalDisk -ErrorAction SilentlyContinue | ForEach-Object {
+        $rel     = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue
+        $diskNum = [int]$_.DeviceId
+        $vs      = $null
+        if ($allSmartWmiReport) {
+            $se = $allSmartWmiReport | Where-Object { $_.InstanceName -match "_${diskNum}$" } | Select-Object -First 1
+            if ($se) { $vs = $se.VendorSpecific }
+        }
+
+        # Wear: try reliability counter, then SMART attr fallbacks, then label NVMe
+        $wearStr = 'N/A'
+        if ($_.MediaType -eq 'SSD') {
+            if ($rel -and $rel.Wear -gt 0) {
+                $worn    = [int]$rel.Wear
+                $wearStr = "$(100 - $worn)% remaining ($worn% worn)"
+            } elseif ($_.BusType -ne 'NVMe' -and $vs) {
+                foreach ($wid in @(0xE9, 0xE7, 0xCA, 0xA9, 0xD1)) {
+                    $wa = Get-SmartAttribute -VendorSpecific $vs -AttributeId $wid
+                    if ($wa -and $wa.Normalized -gt 0 -and $wa.Normalized -le 100) {
+                        $worn    = 100 - $wa.Normalized
+                        $wearStr = "$($wa.Normalized)% remaining ($worn% worn)"
+                        break
+                    }
+                }
+            }
+            if ($wearStr -eq 'N/A' -and $_.BusType -eq 'NVMe') { $wearStr = 'N/A (NVMe)' }
+        }
+
+        $tbWritten = '-'; $tbRead = '-'; $reallocated = '-'; $pending = '-'; $uncorrect = '-'
+        if ($vs) {
+            $a5   = Get-SmartAttribute -VendorSpecific $vs -AttributeId 5
+            $a197 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 197
+            $a198 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 198
+            $a241 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 241
+            $a242 = Get-SmartAttribute -VendorSpecific $vs -AttributeId 242
+            if ($a5)                        { $reallocated = $a5.Raw }
+            if ($a197)                      { $pending     = $a197.Raw }
+            if ($a198)                      { $uncorrect   = $a198.Raw }
+            if ($a241 -and $a241.Raw -gt 0) { $tbWritten   = Format-LbaBytes $a241.Raw }
+            if ($a242 -and $a242.Raw -gt 0) { $tbRead      = Format-LbaBytes $a242.Raw }
+        } elseif ($_.BusType -eq 'NVMe') {
+            $tbWritten = 'N/A (NVMe)'; $tbRead = 'N/A (NVMe)'
+        }
+
+        [PSCustomObject]@{
+            Name          = $_.FriendlyName
+            Type          = $_.MediaType
+            Size          = "$([math]::Round($_.Size/1GB,1)) GB"
+            Health        = $_.HealthStatus
+            Bus           = $_.BusType
+            Wear          = $wearStr
+            TempC         = if ($rel -and $rel.Temperature)                { $rel.Temperature }   else { '-' }
+            PowerOnHrs    = if ($rel -and $rel.PowerOnHours)               { $rel.PowerOnHours }  else { '-' }
+            TotalWritten  = $tbWritten
+            TotalRead     = $tbRead
+            Reallocated   = $reallocated
+            PendingSect   = $pending
+            Uncorrectable = $uncorrect
+            ReadErrors    = if ($rel -and $null -ne $rel.ReadErrorsTotal)  { $rel.ReadErrorsTotal }  else { '-' }
+            WriteErrors   = if ($rel -and $null -ne $rel.WriteErrorsTotal) { $rel.WriteErrorsTotal } else { '-' }
+        }
     })
-    $sections.Add((_tbl 'storage' 'Storage Drives' @('Drive','Type','Size','Health','Bus') $diskRows))
+
+    # Section 1: basic overview (8 columns - readable width)
+    $sections.Add((_tbl 'storage' 'Storage Drives' @('Drive','Type','Size','Health','Bus','Wear','Temp C','Power-On Hrs') @(
+        $storageData | ForEach-Object { ,@($_.Name, $_.Type, $_.Size, $_.Health, $_.Bus, $_.Wear, $_.TempC, $_.PowerOnHrs) }
+    )))
+    # Section 2: SMART detail (8 columns)
+    $sections.Add((_tbl 'storage_smart' 'Storage SMART Detail' @('Drive','Total Written','Total Read','Reallocated','Pending Sect','Uncorrectable','Read Errors','Write Errors') @(
+        $storageData | ForEach-Object { ,@($_.Name, $_.TotalWritten, $_.TotalRead, $_.Reallocated, $_.PendingSect, $_.Uncorrectable, $_.ReadErrors, $_.WriteErrors) }
+    )))
 
     # -- Battery -------------------------------------------------------------
     $batStatic = Get-CimInstance -Namespace root\wmi -ClassName BatteryStaticData    -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -2213,11 +2449,12 @@ function Invoke-PackageSmtp {
     Write-Host   "  The password will be AES-256 encrypted and embedded in"
     Write-Host   "  the script. Clients will never see or enter credentials.`n"
 
-    Write-Host   "  Recipient address will be asked at send-time on the client.`n"
+    Write-Host   "  Leave recipient blank to ask on the client at send-time.`n"
     $server = Read-Host "  SMTP server  (e.g. smtp.gmail.com)"
     $port   = [int](Read-Host "  SMTP port    (e.g. 587)")
     $ssl    = ((Read-Host "  Use SSL/TLS? [Y/n]").Trim().ToUpper() -ne 'N')
     $from   = Read-Host "  From address"
+    $to     = (Read-Host "  Recipient address (leave blank to ask on client)").Trim()
     $user   = Read-Host "  SMTP username"
     $secPwd = Read-Host "  SMTP password" -AsSecureString
 
@@ -2246,7 +2483,7 @@ function Invoke-PackageSmtp {
 `$Script:_SmtpPort   = $port
 `$Script:_SmtpSSL    = $sslStr
 `$Script:_SmtpFrom   = '$from'
-`$Script:_SmtpTo     = ''
+`$Script:_SmtpTo     = '$to'
 `$Script:_SmtpUser   = '$user'
 `$Script:_SmtpEPwd   = '$ePwd'
 `$Script:_SmtpKey    = '$key'
@@ -2554,6 +2791,7 @@ function Show-Menu {
     Write-Host   "  [10]  Power button & lid close actions"
     Write-Host   "  [11]  Power slider"
     Write-Host   "  [12]  Active firewall"
+    Write-Host   "  [30]  Disk health & SMART data"
     Write-Host   ""
     Write-Host   "  -- History & Health --------------------------------"
     Write-Host   "  [13]  Reboot history (last 30 days)"
@@ -2611,6 +2849,7 @@ function Invoke-SysPulseMenu {
             '10' { Show-PowerButtonActions; Show-LidCloseActions; Show-CriticalBatteryActions }
             '11' { Show-PowerSlider }
             '12' { Get-ActiveFirewall }
+            '30' { Get-DiskSmartData }
             '13' { Get-RebootHistory }
             '14' { Get-UnexpectedShutdownCount }
             '15' { Get-WEREvents }
@@ -2655,9 +2894,9 @@ if ($MyInvocation.InvocationName -ne '.') {
 
     if (-not $isAdmin) {
         Write-Host "`n  Relaunching as Administrator..." -ForegroundColor Cyan
-        $args = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+        $psArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
         try {
-            Start-Process powershell.exe -ArgumentList $args -Verb RunAs
+            Start-Process powershell.exe -ArgumentList $psArgs -Verb RunAs
         } catch {
             # User cancelled the UAC prompt — fall through and run without elevation
             Write-Host "  UAC prompt cancelled. Running without administrator privileges." -ForegroundColor Yellow
