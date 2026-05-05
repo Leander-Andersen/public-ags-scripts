@@ -280,6 +280,7 @@ $title = htmlspecialchars(basename($requested));
             border: 1px solid var(--table-border);
             padding: 8px;
             text-align: left;
+            color: var(--text);
         }
 
         .markdown-body thead tr {
