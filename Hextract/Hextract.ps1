@@ -11,7 +11,7 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     Write-Warning "Please run this script as an Administrator."
     $runAsAdmin = Read-Host "Do you want to run this script as an Administrator? (Y/N)"
     if ($runAsAdmin -eq 'Y' -or $runAsAdmin -eq 'y' -or $runAsAdmin -eq 'Yes' -or $runAsAdmin -eq 'yes') {
-        Start-Process powershell -Verb RunAs -ArgumentList ('-noprofile -noexit -file "{0}"' -f ($MyInvocation.MyCommand.Definition))
+        Start-Process powershell -Verb RunAs -ArgumentList ('-ExecutionPolicy Bypass -NoProfile -NoExit -File "{0}"' -f ($MyInvocation.MyCommand.Definition))
     }
     exit
 }
