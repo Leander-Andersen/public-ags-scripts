@@ -17,6 +17,12 @@ jobs:
       pull-requests: write
 
     steps:
-    - uses: actions/labeler@v4
+    # Pinned to a commit SHA (not a moving major tag) so a compromise of
+    # the labeler repo can't silently swap our pinned action. The trailing
+    # comment is the human-readable version this SHA corresponds to.
+    # NOTE: this workflow uses pull_request_target — DO NOT add a checkout
+    # step that fetches PR code, or the GITHUB_TOKEN ends up in PR-author
+    # hands.
+    - uses: actions/labeler@ac9175f8a1f3625fd0d4fb234536d26811351594 # v4
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"

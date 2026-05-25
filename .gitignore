@@ -3,3 +3,6 @@
 setup.lock
 *.bak
 *.log
+
+# Per-machine Claude Code settings (permissions, etc.) — local to each clone
+.claude/
