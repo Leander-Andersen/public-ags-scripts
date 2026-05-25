@@ -160,26 +160,22 @@ The fix would have been a prepared statement (`mysqli_prepare` + `bind_param`) a
 
 </details>
 
-### H5 — `setup.php` and `update.php` are unauthenticated
+### H5 — `setup.php` and `update.php` are unauthenticated  ✅ RESOLVED
 
-**File:** [setup.php:343-413](setup.php#L343-L413), [update.php:287-460](update.php#L287-L460)
+**Status:** Authentication is now via an admin password generated (or chosen) at setup time and bcrypt'd into `.setup-config.json` under `admin_pw_hash`.
 
-There is no authentication on either page. The only gate on `setup.php` is the existence of `setup.lock` (so it's a one-shot until the operator manually unlocks). `update.php` has CSRF tokens, but no auth — anyone who can reach the URL can:
+- `setup.php` form now has a password field (placeholder "leave blank to auto-generate"). On apply, the password is hashed with `password_hash($pw, PASSWORD_DEFAULT)` and stored. The plaintext is displayed *once* on the success page — never written to disk in plaintext.
+- The form pre-fills with the existing domain/folder when re-running, so re-running setup (after deleting `setup.lock`) doesn't force the operator to retype config they already had.
+- `update.php` has a session-based login form at the top. POST password → `password_verify` → `session_regenerate_id(true)` → set `$_SESSION['updater_authed']`. Subsequent visits in the same session skip the form. Session cookies are already hardened (M6: HttpOnly + Secure-when-HTTPS + SameSite=Strict).
+- A `.htaccess` (Apache 2.4+ syntax) ships at the scripts folder root denying HTTP access to `.setup-config.json`, `setup.lock`, `.htaccess`, `*.bak`, and `*.log`. README documents an equivalent Nginx `location` snippet.
+- Migration path for older deployments (no `admin_pw_hash` in config) is shown inline by `update.php` and documented in the README: SSH in, delete `setup.lock`, re-run `setup.php` (form pre-fills with existing domain/folder), set a password.
+- Best-effort `chmod 0600` on `.setup-config.json` after write so local users without webserver-user privileges can't read the hash.
 
-- See the configured domain, folder, and active branch (mild info leak).
-- Trigger `git fetch origin` followed by `git checkout -f -B <branch> origin/<branch>` and re-apply settings ([update.php:397](update.php#L397)).
+### H6 — `update.php` deploys arbitrary branches from origin with no signature check  ⚠️ MITIGATED (partial)
 
-The branch is filtered to `[a-zA-Z0-9_.\-\/]`, which lets you pick any branch that exists on the origin. If an attacker can land a branch on the upstream repo (or compromise it), they can deploy that branch via a single unauthenticated POST. The remote is fixed to GitHub, so the attacker would also need write access there — but the threat model assumed by "anyone can hit `/update.php`" is "trusted operator runs updates," not "anyone on the internet can hit it."
+**Status:** Pairing with H5 closed the "anyone-on-the-internet → RCE" chain — only an authenticated operator can trigger a checkout now. The "compromise of the upstream repo → next update is malicious" risk remains: there's still no signed-tag verification or commit-author allowlist.
 
-Put both pages behind HTTP basic auth, an IP allowlist, or a one-time setup token. At minimum, require a shared secret in `.setup-config.json` that must be POSTed to `update.php`.
-
-### H6 — `update.php` deploys arbitrary branches from origin with no signature check
-
-**File:** [update.php:397](update.php#L397)
-
-The updater runs `git checkout -f -B $branch origin/$branch` against whatever the origin says. There is no signed-tag verification, no commit-author allowlist, no pinned-SHA option. A compromise of the upstream repository — or of any maintainer's GitHub credential — means the next run of `update.php` ships attacker-controlled PHP into the docroot. Combined with H5, this becomes "anyone who can reach the updater + anyone who can push to origin = RCE."
-
-Mitigation depends on how paranoid you want to be. The cheap version is "require signed tags and only deploy tags." The more thorough version is to verify a detached signature against a known-good GPG key before checkout.
+For most self-hosted deployments this is a reasonable place to stop. If you want the next level, the cheap version is to only allow `update.php` to check out tags (not branches) and to verify the tag has a known signature; that's a focused follow-up rather than something to leave open as a finding.
 
 ---
 
@@ -257,15 +253,9 @@ A single quote anywhere in `$PSCommandPath` (a folder named `Leander's Scripts`)
 
 The advertised one-liner pipes a remote bash script directly into a privileged shell. This is industry-standard for self-hosted tools, but it means anyone who compromises GitHub Pages / the raw.githubusercontent CDN gets root on every install. At minimum, document a `--dry-run` mode or a "download, read, then run" alternative — which the README *does* mention further down, so just rebalance the emphasis.
 
-### L2 — `git config --global --add safe.directory` modifies root's global config
+### L2 — `git config --global --add safe.directory` modifies root's global config  ✅ RESOLVED
 
-**File:** [install.sh:72](install.sh#L72)
-
-```bash
-git config --global --add safe.directory "$DEST"
-```
-
-`--global` here means root's global config, not the system config. It's idempotent and not exploitable, but it accumulates entries every time the installer runs on a new path. Use `git -c safe.directory="$DEST" -C "$DEST" fetch origin` to scope it to the single invocation.
+**Status:** `install.sh` now passes `safe.directory` via `git -c safe.directory="$DEST" -C "$DEST" ...` on the fetch and reset commands, scoping the option to those two invocations instead of permanently appending to `/root/.gitconfig` on every install.
 
 ### L3 — `pull_request_target` workflow with version-floated action  ✅ RESOLVED
 
@@ -277,11 +267,9 @@ git config --global --add safe.directory "$DEST"
 
 `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process` is run inside the script. Scope is `Process`, so it's contained, and any environment where the script is *running* has already accepted whatever execution policy got it to this point — but this still lowers the bar inside the process. Most users won't notice or care; flagging for completeness.
 
-### L5 — `Read-MenuChoice` falls through on Ctrl+C handling
+### L5 — `Read-MenuChoice` falls through on Ctrl+C handling  ✅ RESOLVED
 
-**File:** [SetDefaultBrowser/SetDefaultBrowser.ps1:148-158](SetDefaultBrowser/SetDefaultBrowser.ps1#L148-L158)
-
-Cosmetic, not a security issue, but if `Read-Host` returns `$null` (e.g. EOF on a piped invocation) the `switch` block falls into `default` forever. Treat `$null` as quit. Listed here because the broader pattern — interactive prompts in scripts that may be run non-interactively — sometimes hides authentication-bypass bugs.
+**Status:** `Read-MenuChoice` now returns `$null` immediately if `Read-Host` returns `$null` (closed stdin / EOF on piped invocation), instead of looping forever in the `default` branch.
 
 ### L6 — `PnS.ps1` exposes username, hostname, OS version, and printer config to stdout
 
@@ -313,26 +301,25 @@ These came up during the review and looked suspicious at first but didn't turn i
 | H2 | viewer.php prefix-match check | ✅ resolved |
 | H3 | viewer.php unsanitised markdown | ✅ resolved |
 | H4 | Telemetry template SQLi + key | ✅ resolved (deleted) |
-| H5 | No auth on `setup.php` / `update.php` | open — needs operator decision |
-| H6 | Updater deploys arbitrary origin branches | open — paired with H5 |
+| H5 | No auth on `setup.php` / `update.php` | ✅ resolved |
+| H6 | Updater deploys arbitrary origin branches | ⚠️ mitigated (signed-tag verification = follow-up) |
 | M1 | `php-errors.log` in webroot | ✅ resolved |
 | M2 | Missing SRI on CDN scripts | ✅ resolved (mostly — DataTables still local) |
 | M3 | Outdated `countryCodes/` libs | ✅ resolved (mostly — DataTables follow-up) |
 | M4 | Webserver user owns docroot | open |
 | M5 | SysPulse self-delete + `$target` interpolation | ✅ resolved (partial — self-delete is intentional) |
 | M6 | Session cookies missing flags | ✅ resolved |
-| L1 | curl \| sudo bash install pattern | open |
-| L2 | `git config --global` accumulation | open |
+| L1 | curl \| sudo bash install pattern | won't fix (industry standard; alt already documented) |
+| L2 | `git config --global` accumulation | ✅ resolved |
 | L3 | Floating `actions/labeler@v4` | ✅ resolved |
-| L4 | Hextract ExecutionPolicy | open |
-| L5 | `Read-MenuChoice` Ctrl+C | open |
-| L6 | PnS oversharing | open |
+| L4 | Hextract ExecutionPolicy | won't fix (already `-Scope Process`; not a bug) |
+| L5 | `Read-MenuChoice` Ctrl+C | ✅ resolved |
+| L6 | PnS oversharing | won't fix (by design — print-server lookup) |
 
-## Suggested order of operations (what's left)
+## What's left
 
-1. **H5 + H6** — paired auth gate on `setup.php`/`update.php`. Needs an operator decision on the method (HTTP basic auth in the webserver config vs. a token in `.setup-config.json`).
-2. **DataTables follow-up** — bump `countryCodes/jquery.dataTables.min.js` and `dataTables.bootstrap5.min.js` to current `datatables.net` release. Verify the Bootstrap-5 styling glue still lines up.
-3. **M4** — webserver user owns docroot. Documentation + operational fix, not a code change in this repo. Skip unless you're standing up a fresh host.
-4. **L1, L2, L4, L5, L6** — hygiene. Schedule whenever, no urgency.
+1. **DataTables follow-up** — bump `countryCodes/jquery.dataTables.min.js` and `dataTables.bootstrap5.min.js` (and matching CSS) to a current 1.13.x release. **Status: in progress in the next commit.**
+2. **H6 follow-up (optional)** — if you want to close the "compromised upstream" gap, restrict `update.php` to checking out tags and verifying a known GPG signature on the tag. Optional hardening, not a fire.
+3. **M4** — webserver-user-owns-docroot. Multi-tenancy hygiene; not a code change in this repo. Skip unless standing up a new host.
 
 Reports go to leander@isame12.xyz per [SECURITY.md](SECURITY.md). If any of the above is already known and tracked, point me at the issue and I'll cross-reference.

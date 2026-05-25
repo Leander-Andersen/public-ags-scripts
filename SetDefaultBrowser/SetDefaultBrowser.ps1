@@ -146,6 +146,9 @@ function Read-MenuChoice {
         Write-Host "(4) Remove"
         Write-Host "(Q) Quit"
         $choice = Read-Host "Enter your choice"
+        # If stdin is closed (script piped or EOF), Read-Host returns $null —
+        # treat that as quit rather than looping forever on the default branch.
+        if ($null -eq $choice) { return $null }
         switch ($choice.Trim()) {
             '1' { return 'Brave' }
             '2' { return 'Chrome' }

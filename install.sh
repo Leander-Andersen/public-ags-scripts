@@ -69,9 +69,11 @@ echo ""
 # ── Clone or update repo ──────────────────────────────────────────────────────
 if [[ -d "$DEST/.git" ]]; then
     echo "[1/4] Repo already exists — pulling latest..."
-    git config --global --add safe.directory "$DEST" 2>/dev/null || true
-    git -C "$DEST" fetch origin
-    git -C "$DEST" reset --hard "origin/$BRANCH"
+    # Scope safe.directory to these git invocations only (-c flag) rather
+    # than appending to root's global git config on every install. Avoids
+    # accumulating one entry per install path in /root/.gitconfig.
+    git -c safe.directory="$DEST" -C "$DEST" fetch origin
+    git -c safe.directory="$DEST" -C "$DEST" reset --hard "origin/$BRANCH"
 else
     echo "[1/4] Cloning repository..."
     git clone --branch "$BRANCH" "$REPO_URL" "$DEST"
