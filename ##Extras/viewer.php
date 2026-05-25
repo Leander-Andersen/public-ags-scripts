@@ -17,8 +17,12 @@ if ($fileParam === '') {
 }
 
 // normalize and prevent traversal
+// Append DIRECTORY_SEPARATOR to $docroot before the prefix check so a sibling
+// directory whose name starts with the docroot (e.g. /var/www/html-private/
+// when docroot is /var/www/html) can't slip past the containment check.
 $requested = realpath($docroot . DIRECTORY_SEPARATOR . $fileParam);
-if ($requested === false || strpos($requested, $docroot) !== 0) {
+$docrootWithSep = rtrim($docroot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+if ($requested === false || strpos($requested . DIRECTORY_SEPARATOR, $docrootWithSep) !== 0) {
     http_response_code(403);
     echo "Access denied.";
     exit;
@@ -71,6 +75,9 @@ $title = htmlspecialchars(basename($requested));
     <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <!-- DOMPurify sanitises the HTML that marked.parse() produces, so a
+         hostile or careless .md file can't inject <script>, onerror=, etc. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
     <!-- Apply saved theme before first paint -->
     <script>
@@ -551,7 +558,13 @@ $title = htmlspecialchars(basename($requested));
             });
 
             try {
-                target.innerHTML = marked.parse(md);
+                // marked.parse() will happily emit <script> and inline-event
+                // handlers if the source markdown contains raw HTML. Run the
+                // output through DOMPurify before injecting it into the DOM.
+                var rendered = marked.parse(md);
+                target.innerHTML = (typeof DOMPurify !== 'undefined')
+                    ? DOMPurify.sanitize(rendered)
+                    : rendered;
             } catch (err) {
                 target.textContent = 'Error rendering markdown.';
                 console.error(err);

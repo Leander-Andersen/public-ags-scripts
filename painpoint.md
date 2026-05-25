@@ -105,31 +105,38 @@ Any file whose name contained HTML — e.g. `<img src=x onerror=alert(document.d
 
 </details>
 
-### H2 — viewer.php docroot check is a prefix match, not a containment check
+### H2 — viewer.php docroot check is a prefix match, not a containment check  ✅ RESOLVED
 
-**File:** [##Extras/viewer.php:20-21](##Extras/viewer.php#L20-L21)
+**Status:** The check now compares `$requested . DIRECTORY_SEPARATOR` against `$docroot` with a trailing separator appended. A sibling directory like `/var/www/html-private/` can no longer satisfy the containment check when docroot is `/var/www/html`. The check still uses `strpos === 0` (rather than `str_starts_with`) so the file stays compatible with PHP 7.x hosts. Updater redeploys to the web root automatically.
 
-```php
-$requested = realpath($docroot . DIRECTORY_SEPARATOR . $fileParam);
-if ($requested === false || strpos($requested, $docroot) !== 0) {
-```
+<details>
+<summary>Original finding (kept for the record)</summary>
 
-`strpos($requested, $docroot) !== 0` accepts any path whose string prefix matches `$docroot`. If `$docroot` is `/var/www/html`, then `/var/www/html-private/secret.md` also passes — the realpath escapes the intended container, but the prefix-string check doesn't notice.
+`strpos($requested, $docroot) !== 0` accepted any path whose string prefix matched `$docroot`. If `$docroot` was `/var/www/html`, then `/var/www/html-private/secret.md` also passed — the realpath escaped the intended container, but the prefix-string check didn't notice. Required both a sibling directory whose name started with the docroot's basename and a `.md` file inside it.
 
-In practice this requires both (a) a sibling directory whose name starts with the docroot's basename, and (b) a `.md` file inside it. Limited blast radius today, but the bug is real and trivial to fix: append a directory separator before comparing, or use `str_starts_with($requested, $docroot . DIRECTORY_SEPARATOR)` (PHP 8.0+).
+</details>
 
-### H3 — viewer.php renders markdown with `marked` unsanitised
+### H3 — viewer.php renders markdown with `marked` unsanitised  ✅ RESOLVED
 
-**File:** [##Extras/viewer.php:528-554](##Extras/viewer.php#L528-L554)
+**Status:** DOMPurify 3.0.6 is now loaded from cdnjs and wrapped around `marked.parse(md)` output before it touches `innerHTML`. Raw `<script>`, inline event handlers, and similar HTML in a `.md` file are stripped before render. Code blocks, links, lists, tables, and `highlight.js` styling still work — DOMPurify's default config allows all of that.
+
+A fallback branch falls through to unsanitised output if DOMPurify failed to load (e.g. cdnjs unreachable), so the page degrades to "renders unsanitised markdown" rather than "blank page." That's a deliberate tradeoff for the dev-tool use case; flip the condition if you'd rather fail closed.
+
+DOMPurify is loaded without an SRI hash to stay consistent with the other CDN scripts on the page. M2 will fix all CDN scripts (marked, highlight.js, fonts, github-markdown-css, DOMPurify) in one pass.
+
+<details>
+<summary>Original finding (kept for the record)</summary>
 
 ```js
 const md = <?php echo json_encode($contents, ...); ?>;
 target.innerHTML = marked.parse(md);
 ```
 
-`marked` by default allows raw HTML in markdown (`<script>`, `<img onerror>`, etc.), and there is no DOMPurify in the chain. Any `.md` file under the docroot, whether shipped by the repo or written later by some tool, can XSS the viewer with full DOM access. The only thing standing between an attacker and this is "we control all the markdown files" — which is exactly what we'd be relying on if we didn't have a parser.
+`marked` by default allows raw HTML in markdown (`<script>`, `<img onerror>`, etc.), and there was no DOMPurify in the chain. Any `.md` file under the docroot could XSS the viewer with full DOM access.
 
-Switch to `marked.parse(md, { sanitize: true })` is deprecated/removed in modern `marked`; the right fix is to render then run the result through DOMPurify (`DOMPurify.sanitize(marked.parse(md))`).
+`marked.parse(md, { sanitize: true })` is deprecated/removed in modern `marked`; the right fix was DOMPurify around the output.
+
+</details>
 
 ### H4 — SQL injection + hardcoded API key in the telemetry template  ✅ RESOLVED
 
