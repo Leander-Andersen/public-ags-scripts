@@ -2097,13 +2097,15 @@ function Get-AllDiagnosticData {
     $sections.Add((_tbl 'wuhistory' 'Windows Update History (last 50)' @('Date','Title','Result') $wuRows))
 
     # -- Recent System Errors (last 50) ---------------------------------------
-    $evtErrRows = @(Get-WinEvent -FilterHashtable @{
-        LogName   = 'System'
-        Level     = @(1, 2)
-        StartTime = (Get-Date).AddDays(-14)
-    } -MaxEvents 50 -ErrorAction SilentlyContinue | ForEach-Object {
-        ,@($_.TimeCreated.ToString('yyyy-MM-dd HH:mm'), $_.Id, $_.LevelDisplayName, $_.ProviderName, ($_.Message -split "`n")[0])
-    })
+    # FilterHashtable Level key does not support arrays — query each level separately.
+    $evtErrRows = @(
+        @(
+            Get-WinEvent -FilterHashtable @{ LogName='System'; Level=1; StartTime=(Get-Date).AddDays(-14) } -MaxEvents 50 -ErrorAction SilentlyContinue
+            Get-WinEvent -FilterHashtable @{ LogName='System'; Level=2; StartTime=(Get-Date).AddDays(-14) } -MaxEvents 50 -ErrorAction SilentlyContinue
+        ) | Sort-Object TimeCreated -Descending | Select-Object -First 50 | ForEach-Object {
+            ,@($_.TimeCreated.ToString('yyyy-MM-dd HH:mm'), $_.Id, $_.LevelDisplayName, $_.ProviderName, ($_.Message -split "`n")[0])
+        }
+    )
     $sections.Add((_tbl 'sysevterr' 'Recent System Errors / Criticals (14 days)' @('Time','Event ID','Level','Source','Message') $evtErrRows))
 
     # -- Shares ---------------------------------------------------------------
