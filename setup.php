@@ -1,7 +1,24 @@
 <?php
 ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/php-errors.log');
+// Write PHP errors to the system temp dir (e.g. /tmp/ags-php-errors.log on
+// Linux) instead of the scripts folder itself. The scripts folder is served
+// by the webserver, so a log file inside it is fetchable as a URL and may
+// leak filesystem paths, query strings, and partial stack traces.
+ini_set('error_log', sys_get_temp_dir() . '/ags-php-errors.log');
 
+// Lock down the session cookie before starting the session.
+//  - HttpOnly  : JS can't read it (so an XSS can't steal it)
+//  - SameSite=Strict : browsers refuse to send it from cross-site requests
+//  - Secure    : only sent over HTTPS, *if* the current request is HTTPS
+//                (during first-run setup over plain HTTP we leave it off so
+//                the page still works; once HTTPS is in place the flag flips)
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 
 // ── Lock check ────────────────────────────────────────────────────────────────
@@ -180,13 +197,23 @@ function cleanup_bak_files(string $base): int {
     return $count;
 }
 
-function validate(string $domain, string $folder): array {
+function validate(string $domain, string $folder, string $admin_pw, bool $allow_blank_pw): array {
     $errs = [];
     if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/', $domain)) {
         $errs[] = 'Script domain looks invalid (e.g. <code>script.yourdomain.com</code>).';
     }
     if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_\-]*$/', $folder)) {
         $errs[] = 'Folder name must be alphanumeric (hyphens/underscores allowed, no spaces).';
+    }
+    // Password is optional in two situations:
+    //   1. There is NO existing config — leave blank to auto-generate.
+    //   2. There IS an existing config with a password — leave blank to keep it.
+    // If the operator provided one, it must clear a minimum-strength bar.
+    if ($admin_pw !== '' && strlen($admin_pw) < 8) {
+        $errs[] = 'Admin password must be at least 8 characters.';
+    }
+    if ($admin_pw === '' && !$allow_blank_pw) {
+        $errs[] = 'Admin password is required (no existing one to keep).';
     }
     return $errs;
 }
@@ -340,11 +367,19 @@ HTML;
 $base        = __DIR__;
 $CONFIG_FILE = __DIR__ . '/.setup-config.json';
 
+// Load any pre-existing config so we can pre-fill the form (re-runs keep
+// their existing domain/folder values) and decide whether the password
+// field is allowed to be left blank.
+$existing       = file_exists($CONFIG_FILE) ? json_decode(file_get_contents($CONFIG_FILE), true) : null;
+$has_existing_pw = !empty($existing['admin_pw_hash']);
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $d_default = $existing['script_domain'] ?? '';
+    $f_default = $existing['script_folder'] ?? '';
     page_open('Setup');
     $warn = permission_warning($base);
     if ($warn) echo $warn;
-    else echo render_form('', '', [], $csrf);
+    else echo render_form($d_default, $f_default, [], $csrf, $has_existing_pw);
     page_close();
     exit;
 }
@@ -355,13 +390,21 @@ if (!isset($_POST['csrf_token']) || !hash_equals($csrf, $_POST['csrf_token'])) {
     die('CSRF mismatch — go back and try again.');
 }
 
-$domain  = trim($_POST['script_domain'] ?? '');
-$folder  = trim($_POST['folder_name']   ?? '');
-$errors  = validate($domain, $folder);
+$domain   = trim($_POST['script_domain']  ?? '');
+$folder   = trim($_POST['folder_name']    ?? '');
+// The password field on the *initial* submit becomes part of the session so
+// we don't have to round-trip the plaintext through the preview HTML.
+// (The preview page POSTs back with confirm=1 but no admin_password field.)
+if (isset($_POST['admin_password'])) {
+    $_SESSION['pending_admin_password'] = $_POST['admin_password'];
+}
+$admin_pw = (string)($_SESSION['pending_admin_password'] ?? '');
+
+$errors = validate($domain, $folder, $admin_pw, $has_existing_pw);
 
 if ($errors) {
     page_open('Setup — Errors');
-    echo render_form($domain, $folder, $errors, $csrf);
+    echo render_form($domain, $folder, $errors, $csrf, $has_existing_pw);
     page_close();
     exit;
 }
@@ -373,13 +416,36 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
     // ── Apply ─────────────────────────────────────────────────────────────────
     $results = apply_changes($target_files, $replacements, $base);
 
+    // Resolve the admin password:
+    //   - Operator typed one        -> hash it, remember plaintext for display
+    //   - Blank + existing hash     -> keep the previous hash, don't display
+    //   - Blank + no existing hash  -> auto-generate, remember for display
+    $plaintext_to_display = null;
+    if ($admin_pw !== '') {
+        $admin_pw_hash        = password_hash($admin_pw, PASSWORD_DEFAULT);
+        $plaintext_to_display = $admin_pw;
+    } elseif ($has_existing_pw) {
+        $admin_pw_hash        = $existing['admin_pw_hash'];
+    } else {
+        $plaintext_to_display = bin2hex(random_bytes(16));    // 32-char hex, 128 bits
+        $admin_pw_hash        = password_hash($plaintext_to_display, PASSWORD_DEFAULT);
+    }
+
     // Save settings so update.php can re-apply them after a git pull
     $config = [
         'script_domain'  => $domain,
         'script_folder'  => $folder,
         'configured_at'  => date('c'),
+        'admin_pw_hash'  => $admin_pw_hash,
     ];
     file_put_contents($CONFIG_FILE, json_encode($config, JSON_PRETTY_PRINT));
+    // Best-effort: tighten file perms so other local users can't read the hash.
+    // Apache/Nginx still need it (they own the file), but defence in depth.
+    @chmod($CONFIG_FILE, 0600);
+
+    // Consume the pending password from the session — we're done with it.
+    unset($_SESSION['pending_admin_password']);
+
     file_put_contents($LOCK_FILE, date('c'));
 
     // Remove .bak files left by apply_changes()
@@ -407,6 +473,25 @@ if (isset($_POST['confirm']) && $_POST['confirm'] === '1') {
         echo "<li class=\"list-group-item list-group-item-warning\">Could not rename folder automatically — please rename <code>{$current_name}</code> to <code>" . htmlspecialchars($folder) . "</code> manually.</li>";
     }
     echo '</ul>';
+
+    // Show the admin password EXACTLY ONCE — only if we just generated it
+    // or the operator just set/changed it. The page is the only place the
+    // plaintext exists on disk; it gets bcrypted into .setup-config.json and
+    // is never recoverable from there.
+    if ($plaintext_to_display !== null) {
+        $pw_html = htmlspecialchars($plaintext_to_display, ENT_QUOTES, 'UTF-8');
+        echo '<div class="alert alert-warning">';
+        echo '<strong>Admin password — save it now:</strong><br>';
+        echo '<pre class="mt-2 mb-2 p-2 bg-body-secondary border rounded" style="user-select:all">' . $pw_html . '</pre>';
+        echo 'You\'ll be prompted for this on every visit to <code>update.php</code>. ';
+        echo 'It is <strong>not recoverable</strong> — only the bcrypt hash is stored on disk. ';
+        echo 'Lost it? SSH in, delete <code>setup.lock</code>, re-run setup.';
+        echo '</div>';
+    } else {
+        // Existing password kept.
+        echo '<div class="alert alert-info">Admin password unchanged — keeping the previously configured one.</div>';
+    }
+
     $new_url = 'https://' . htmlspecialchars($domain) . '/' . htmlspecialchars($folder) . '/';
     echo "<div class=\"alert alert-success\"><strong>Setup complete.</strong> Your scripts are now live at <a href=\"{$new_url}\">{$new_url}</a></div>";
     page_close();
@@ -436,7 +521,11 @@ echo '<h5 class="mb-1">Review changes</h5>';
 echo '<p class="text-muted mb-3">Lines in <span class="text-danger fw-semibold">red</span> will be replaced with the <span class="text-success fw-semibold">green</span> version.</p>';
 
 if (empty($preview)) {
-    echo '<div class="alert alert-info">No placeholders found in any files — nothing to change.</div>';
+    // Migration / re-run path: placeholders were already substituted by a
+    // previous setup (or by update.php's re-apply step). No file edits are
+    // needed, but we still want to write the config (admin password hash)
+    // and recreate setup.lock — so show the form anyway.
+    echo '<div class="alert alert-info">No file changes needed — placeholders are already substituted to your current values. Clicking apply still writes the admin-password hash to <code>.setup-config.json</code> and recreates <code>setup.lock</code>.</div>';
 } else {
     foreach ($preview as $entry) {
         echo '<div class="file-header">' . htmlspecialchars($entry['file']) . '</div>';
@@ -448,21 +537,23 @@ if (empty($preview)) {
         }
         echo '</div>';
     }
-
-    echo '<form method="post" class="mt-3">';
-    echo '<input type="hidden" name="csrf_token"    value="' . htmlspecialchars($csrf)    . '">';
-    echo '<input type="hidden" name="script_domain" value="' . htmlspecialchars($domain)  . '">';
-    echo '<input type="hidden" name="folder_name"   value="' . htmlspecialchars($folder)  . '">';
-    echo '<input type="hidden" name="confirm"        value="1">';
-    echo '<button type="submit" class="btn btn-success me-2">Apply changes</button>';
-    echo '<a href="setup.php" class="btn btn-outline-secondary">Back</a>';
-    echo '</form>';
 }
+
+// Always show the apply form — preview may be empty but config + lock
+// still need to be written.
+echo '<form method="post" class="mt-3">';
+echo '<input type="hidden" name="csrf_token"    value="' . htmlspecialchars($csrf)    . '">';
+echo '<input type="hidden" name="script_domain" value="' . htmlspecialchars($domain)  . '">';
+echo '<input type="hidden" name="folder_name"   value="' . htmlspecialchars($folder)  . '">';
+echo '<input type="hidden" name="confirm"        value="1">';
+echo '<button type="submit" class="btn btn-success me-2">Apply changes</button>';
+echo '<a href="setup.php" class="btn btn-outline-secondary">Back</a>';
+echo '</form>';
 
 page_close();
 
 // ── Form renderer ─────────────────────────────────────────────────────────────
-function render_form(string $domain, string $folder, array $errors, string $csrf): string {
+function render_form(string $domain, string $folder, array $errors, string $csrf, bool $has_existing_pw): string {
     $d_val = htmlspecialchars($domain);
     $f_val = htmlspecialchars($folder);
     $out   = '';
@@ -473,8 +564,14 @@ function render_form(string $domain, string $folder, array $errors, string $csrf
         $out .= '</ul></div>';
     }
 
+    // Password help text differs based on whether a password is already set.
+    $pw_help = $has_existing_pw
+        ? 'Leave blank to keep the current password.'
+        : 'Leave blank and we\'ll generate a strong random one for you — shown once on the next page.';
+    $pw_placeholder = $has_existing_pw ? '(unchanged)' : 'Leave blank to auto-generate';
+
     $out .= <<<HTML
-<form method="post">
+<form method="post" autocomplete="off">
   <input type="hidden" name="csrf_token" value="{$csrf}">
 
   <div class="mb-3">
@@ -489,6 +586,13 @@ function render_form(string $domain, string $folder, array $errors, string $csrf
     <input class="form-control" id="folder_name" name="folder_name"
            placeholder="my-scripts" value="{$f_val}" required>
     <div class="form-text">Replaces <code>&lt;SCRIPT_FOLDER&gt;</code> in all scripts. Must match the actual folder name on the web server.</div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-semibold" for="admin_password">Admin password</label>
+    <input class="form-control" id="admin_password" name="admin_password"
+           type="password" autocomplete="new-password" placeholder="{$pw_placeholder}">
+    <div class="form-text">Used to gate <code>update.php</code>. Min 8 chars if you type one. {$pw_help}</div>
   </div>
 
   <button type="submit" class="btn btn-primary">Preview changes</button>

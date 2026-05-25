@@ -2694,9 +2694,17 @@ function Send-DiagnosticReport {
     if ($sent -and $usingEmbedded -and $PSCommandPath) {
         Write-Host "  Self-deleting script as configured for client distribution..." -ForegroundColor DarkGray
         $target = $PSCommandPath
-        # Launch a detached process that waits briefly then removes the file
-        $cmd = "Start-Sleep -Milliseconds 800; Remove-Item -LiteralPath '$target' -Force"
-        Start-Process powershell.exe -ArgumentList "-NoProfile -NonInteractive -WindowStyle Hidden -Command $cmd"
+        # Build the detached command with PowerShell single-quote escape (' -> ''),
+        # then ship it via -EncodedCommand so neither PowerShell's own parser nor any
+        # intermediate shell can be confused by quotes, spaces, or odd characters in
+        # the path (e.g. "C:\Users\Leander's Scripts\SysPulse_pkg.ps1").
+        $escaped = $target -replace "'", "''"
+        $inner   = "Start-Sleep -Milliseconds 800; Remove-Item -LiteralPath '$escaped' -Force"
+        $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($inner))
+        Start-Process powershell.exe -ArgumentList @(
+            '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden',
+            '-EncodedCommand', $encoded
+        )
         Write-Host "  Done. Exiting." -ForegroundColor DarkGray
         exit
     }

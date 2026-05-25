@@ -1,7 +1,16 @@
 <?php
 ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/php-errors.log');
+// See setup.php: log to system temp dir so the file isn't served by the webserver.
+ini_set('error_log', sys_get_temp_dir() . '/ags-php-errors.log');
 
+// See setup.php for rationale on the session cookie flags.
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -279,6 +288,59 @@ $config = json_decode(file_get_contents($CONFIG_FILE), true);
 if (!$config || empty($config['script_domain'])) {
     page_open('Updater — Corrupt config');
     echo '<div class="alert alert-danger"><strong>.setup-config.json is missing or corrupt.</strong><br>Delete <code>setup.lock</code> and re-run <a href="setup.php">setup.php</a>.</div>';
+    page_close();
+    exit;
+}
+
+// ── Auth gate ─────────────────────────────────────────────────────────────────
+// Setup writes an `admin_pw_hash` field (bcrypt). Configs from before the
+// password feature shipped won't have it; tell the operator to re-run setup.
+if (empty($config['admin_pw_hash'])) {
+    page_open('Updater — Password not set');
+    echo '<div class="alert alert-warning">';
+    echo '<strong>This deployment was set up before the admin-password feature.</strong><br>';
+    echo 'SSH into the server, delete <code>setup.lock</code> in the scripts folder, ';
+    echo 'and re-run <a href="setup.php">setup.php</a> to set an admin password. ';
+    echo 'The existing domain and folder values will be pre-filled.';
+    echo '</div>';
+    page_close();
+    exit;
+}
+
+// Already-authed sessions skip past this whole block.
+if (empty($_SESSION['updater_authed'])) {
+    $login_error = null;
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_password'])) {
+        if (!isset($_POST['csrf_token']) || !hash_equals($csrf, $_POST['csrf_token'])) {
+            http_response_code(403);
+            die('CSRF mismatch — go back and try again.');
+        }
+        if (password_verify($_POST['login_password'], $config['admin_pw_hash'])) {
+            // Rotate the session id on privilege change so a sniffed pre-auth
+            // session id can't be replayed against the now-authed session.
+            session_regenerate_id(true);
+            $_SESSION['updater_authed'] = true;
+            // Post/Redirect/Get so a refresh doesn't re-submit the password.
+            header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+            exit;
+        }
+        $login_error = 'Wrong password.';
+    }
+
+    page_open('Updater — Log in');
+    if ($login_error) {
+        echo '<div class="alert alert-danger">' . htmlspecialchars($login_error) . '</div>';
+    }
+    echo '<form method="post" autocomplete="off">';
+    echo '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($csrf) . '">';
+    echo '<div class="mb-3">';
+    echo '<label class="form-label fw-semibold" for="login_password">Admin password</label>';
+    echo '<input class="form-control" type="password" id="login_password" name="login_password" required autofocus autocomplete="current-password">';
+    echo '<div class="form-text">Set during <code>setup.php</code>. Lost it? SSH in, delete <code>setup.lock</code>, re-run setup.</div>';
+    echo '</div>';
+    echo '<button type="submit" class="btn btn-primary">Log in</button>';
+    echo '</form>';
     page_close();
     exit;
 }

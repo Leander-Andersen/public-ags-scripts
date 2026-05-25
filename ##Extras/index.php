@@ -33,12 +33,20 @@ if ($curReal !== $docroot) {
 }
 
 // Build file/folder list
+// All file/folder names and URL paths are escaped before being echoed into
+// HTML attributes or text — a filename like `<img src=x onerror=alert(1)>.txt`
+// would otherwise execute as JavaScript when the listing is rendered.
 $items_html = '';
 foreach ($scanned_directory as $file) {
+    $fileText = htmlspecialchars($file, ENT_QUOTES, 'UTF-8');
+
     if (is_dir($file)) {
+        // rawurlencode the path segment so quirky characters survive transit;
+        // htmlspecialchars escapes the visible text.
+        $hrefDir = rawurlencode($file) . '/';
         $items_html .= '<li>'
             . '<span class="material-symbols-outlined folderIcon">folder</span>'
-            . '<a href="' . $file . '/">' . $file . '/</a>'
+            . '<a href="' . htmlspecialchars($hrefDir, ENT_QUOTES, 'UTF-8') . '">' . $fileText . '/</a>'
             . '</li>';
     } else {
         $filesize = filesize($file);
@@ -51,19 +59,22 @@ foreach ($scanned_directory as $file) {
         if (in_array($ext, ['md', 'markdown'])) {
             $href = '/viewer.php?f=' . rawurlencode($relPath);
         } else {
-            $href = '/' . $relPath;
+            // Percent-encode each path segment but keep the slashes intact
+            // so the link still works on disk paths.
+            $encodedSegments = array_map('rawurlencode', explode('/', $relPath));
+            $href = '/' . implode('/', $encodedSegments);
         }
 
         $fullUrl = $scheme . '://' . $host . $href;
 
         $items_html .= '<li>'
             . '<span class="material-symbols-outlined fileIcon">draft</span>'
-            . '<a href="' . $href . '">' . $file . '</a>'
+            . '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">' . $fileText . '</a>'
             . '<span class="file-meta">'
             .   '<span class="file-mtime">' . date('d.m.Y', $mtime) . '</span>'
             .   '<span class="file-size">' . formatSizeUnits($filesize) . '</span>'
             . '</span>'
-            . '<button class="copy-btn" data-url="' . htmlspecialchars($fullUrl) . '" title="Copy URL" aria-label="Copy URL">'
+            . '<button class="copy-btn" data-url="' . htmlspecialchars($fullUrl, ENT_QUOTES, 'UTF-8') . '" title="Copy URL" aria-label="Copy URL">'
             .   '<span class="material-symbols-outlined">content_copy</span>'
             . '</button>'
             . '</li>';

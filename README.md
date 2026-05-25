@@ -60,16 +60,17 @@ Open a browser and go to:
 http://your-server/<scripts-folder>/setup.php
 ```
 
-Enter two values:
+Enter three values:
 
 - **Script domain** — the domain or subdomain this server is reachable at (e.g. `scripts.yourdomain.com`). No `https://`, no trailing slash.
 - **Folder name** — must match the `--scripts-folder` you used during install (e.g. `scripts`).
+- **Admin password** — used to gate `update.php` so random people can't trigger updates. Leave blank to have a strong random one generated for you — you'll see it once on the success page, **save it somewhere safe**. Lost it? SSH in, delete `setup.lock`, re-run `setup.php`.
 
 Setup will scan every script in the library, show you a diff of every line that will change, and wait for you to confirm before writing anything. Once applied it:
 
 - Rewrites all `<SCRIPT_DOMAIN>` and `<SCRIPT_FOLDER>` placeholders across every `.ps1`, `.php`, `.sh`, and other text file in the library — including this README, so all URLs below become real copy-paste links
 - Renames the scripts folder on disk to match what you entered
-- Saves your settings to `.setup-config.json` so updates can re-apply them automatically
+- Saves your settings to `.setup-config.json` (domain, folder, **bcrypt'd admin password hash**) so updates can re-apply them automatically
 - Creates `setup.lock` to prevent accidental re-runs
 
 After setup your scripts are live:
@@ -90,7 +91,7 @@ Once the library is set up, visit:
 https://<SCRIPT_DOMAIN>/<SCRIPT_FOLDER>/update.php
 ```
 
-The updater will:
+You'll be prompted for the admin password you set during `setup.php`. Once logged in, the updater will:
 
 1. Fetch the latest commits from GitHub
 2. Show you a summary of what changed
@@ -98,6 +99,33 @@ The updater will:
 4. Automatically re-apply your saved domain and folder settings from `.setup-config.json`
 
 You do not need to re-run setup.php or the installer after an update — your configuration is preserved.
+
+### Updating from a version that pre-dates the admin password
+
+If `.setup-config.json` doesn't contain an `admin_pw_hash` field (older deployments), `update.php` will tell you so and refuse to run. To migrate:
+
+1. SSH in
+2. `rm <webroot>/<scripts-folder>/setup.lock`
+3. Visit `setup.php` in a browser — the form pre-fills with your existing domain/folder
+4. Set an admin password (or leave blank to auto-generate)
+5. Submit → apply → save the password
+6. `update.php` is now usable with the new password
+
+---
+
+## Locking down `.setup-config.json`
+
+The scripts folder ships an Apache `.htaccess` that denies HTTP access to `.setup-config.json`, `setup.lock`, `.htaccess` itself, and any `*.bak` / `*.log` files. Apache picks it up automatically.
+
+**Nginx users** — Apache `.htaccess` files are ignored by Nginx; add the equivalent to your server block:
+
+```nginx
+location ~ /\.(setup-config\.json|htaccess)$ { deny all; }
+location ~ /setup\.lock$                      { deny all; }
+location ~ \.(bak|log)$                       { deny all; }
+```
+
+The password hash is bcrypt'd before being written, so even if the file were to leak the plaintext is not directly recoverable — but defense in depth is cheap, and the file has no business being HTTP-fetchable.
 
 ---
 
