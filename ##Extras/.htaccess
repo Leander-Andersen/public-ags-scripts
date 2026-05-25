@@ -9,3 +9,15 @@
 
 ErrorDocument 404 /404.php
 ErrorDocument 403 /403.php
+
+# Deny direct HTTP access to files that exist at the webroot but are
+# only ever meant to be used as includes — visitors hitting them get
+# nothing useful, just a leak of "yes, this file exists." Forcing them
+# through the 403 page is cleaner and consistent.
+#
+# globalVariables.php : require_once'd by index.php; outputs nothing on
+#                       its own. No reason to expose it as a URL.
+<Files "globalVariables.php">
+    Require all denied
+</Files>
+
