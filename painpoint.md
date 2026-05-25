@@ -198,13 +198,13 @@ For most self-hosted deployments this is a reasonable place to stop. If you want
 
 **Still open:** DataTables (`countryCodes/jquery.dataTables.min.js`, `dataTables.bootstrap5.min.js`) — left as local files for now; bump is a follow-up.
 
-### M3 — Outdated front-end libraries in `countryCodes/`  ✅ RESOLVED (mostly)
+### M3 — Outdated front-end libraries in `countryCodes/`  ✅ RESOLVED
 
 **Status:**
 
-- **jQuery 3.5.1** (CVE-2020-11022 / CVE-2020-11023) — local file `countryCodes/jquery-3.5.1.js` deleted, replaced with cdnjs `jquery@3.7.1` + sha512 SRI. The bytes of jQuery no longer ship in this repo.
+- **jQuery 3.5.1** (CVE-2020-11022 / CVE-2020-11023) — local file `countryCodes/jquery-3.5.1.js` deleted, replaced with cdnjs `jquery@3.7.1` + sha512 SRI.
 - **Bootstrap 5.3.0-alpha1** — bumped to `5.3.2` stable. CSS + JS bundle both moved from jsdelivr to cdnjs so the sha512 SRI matches what's actually served.
-- **DataTables** — still local (`jquery.dataTables.min.js`, `dataTables.bootstrap5.min.js`, `dataTables.bootstrap5.min.css`). cdnjs's current DataTables library entry is stale; the official `datatables.net` CDN is the right replacement, but doing it cleanly means also auditing the DataTables/Bootstrap-5 styling glue. Punted for now — no known active CVE blocks shipping the current local copy. **Status: open**, follow-up.
+- **DataTables** — local files bumped to 1.13.11 (`jquery.dataTables.min.js`, `dataTables.bootstrap5.min.js`, `dataTables.bootstrap5.min.css`), pulled from `cdn.datatables.net`. The init call in `countryCodes/index.php` uses the standard 1.x API (`order`, `paging`, `columns`, `searchable`), which is unchanged in 1.13.11 — no code change needed.
 
 ### M4 — Permission posture: webserver user owns the entire docroot
 
@@ -305,7 +305,7 @@ These came up during the review and looked suspicious at first but didn't turn i
 | H6 | Updater deploys arbitrary origin branches | ⚠️ mitigated (signed-tag verification = follow-up) |
 | M1 | `php-errors.log` in webroot | ✅ resolved |
 | M2 | Missing SRI on CDN scripts | ✅ resolved (mostly — DataTables still local) |
-| M3 | Outdated `countryCodes/` libs | ✅ resolved (mostly — DataTables follow-up) |
+| M3 | Outdated `countryCodes/` libs | ✅ resolved |
 | M4 | Webserver user owns docroot | open |
 | M5 | SysPulse self-delete + `$target` interpolation | ✅ resolved (partial — self-delete is intentional) |
 | M6 | Session cookies missing flags | ✅ resolved |
@@ -318,8 +318,9 @@ These came up during the review and looked suspicious at first but didn't turn i
 
 ## What's left
 
-1. **DataTables follow-up** — bump `countryCodes/jquery.dataTables.min.js` and `dataTables.bootstrap5.min.js` (and matching CSS) to a current 1.13.x release. **Status: in progress in the next commit.**
-2. **H6 follow-up (optional)** — if you want to close the "compromised upstream" gap, restrict `update.php` to checking out tags and verifying a known GPG signature on the tag. Optional hardening, not a fire.
-3. **M4** — webserver-user-owns-docroot. Multi-tenancy hygiene; not a code change in this repo. Skip unless standing up a new host.
+1. **H6 follow-up (optional)** — if you want to close the "compromised upstream" gap, restrict `update.php` to checking out tags and verifying a known GPG signature on the tag. Optional hardening, not a fire.
+2. **M4** — webserver-user-owns-docroot. Multi-tenancy hygiene; not a code change in this repo. Skip unless standing up a new host.
+
+That's the lot. **C1, H1, H2, H3, H4, H5, H6 (mitigated), M1, M2, M3, M5, M6, L2, L3, L5 are landed.** H0 is accepted-risk, M4/L1/L4/L6 are won't-fix per scope decisions.
 
 Reports go to leander@isame12.xyz per [SECURITY.md](SECURITY.md). If any of the above is already known and tracked, point me at the issue and I'll cross-reference.
