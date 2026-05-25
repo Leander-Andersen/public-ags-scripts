@@ -123,25 +123,25 @@ target.innerHTML = marked.parse(md);
 
 Switch to `marked.parse(md, { sanitize: true })` is deprecated/removed in modern `marked`; the right fix is to render then run the result through DOMPurify (`DOMPurify.sanitize(marked.parse(md))`).
 
-### H4 — SQL injection + hardcoded API key in the telemetry template
+### H4 — SQL injection + hardcoded API key in the telemetry template  ✅ RESOLVED
 
-**File:** [##Extras/telemmentryTemplate.php:5](##Extras/telemmentryTemplate.php#L5), [##Extras/telemmentryTemplate.php:46](##Extras/telemmentryTemplate.php#L46)
+**Status:** Both files deleted from the repo. `##Extras/PostToAPITemplate.ps1` and `##Extras/telemmentryTemplate.php` are gone; the bullet list in `##Extras/README.md` was updated to match. Nothing in the library referenced them.
 
-```php
-$expectedToken = 'BRRRRR_skibidi_dop_dop_dop_yes_yes!';
-...
-$sql = "INSERT INTO TestAPI (...) VALUES ('$host', '$script', '$ok', '$error')";
-$result = mysqli_query($conn, $sql);
-```
+The hardcoded `BRRRRR_…` key is still in git history (a force-push would be needed to truly erase it). The key was only ever used by the deleted template, so there's no live deployment to rotate — but if any private fork ever copied the template, it should be deleted there too.
 
-Two issues in one file:
+<details>
+<summary>Original finding (kept for the record)</summary>
 
-1. **Hardcoded shared secret** — the same string is in [##Extras/PostToAPITemplate.ps1:34](##Extras/PostToAPITemplate.ps1#L34). It's in a public repository, which means the secret is public. Anyone can submit telemetry. Rotate it, move it to an environment variable, and document that the template won't work until the operator sets one.
-2. **Classic SQL injection** — `$script`, `$host`, `$error` are concatenated into the `INSERT` statement. The token check on line 14 doesn't help because the token is public (see point 1). An attacker can drop tables, exfiltrate data via `UNION` in a subquery routed through `$error`, etc.
+**File:** `##Extras/telemmentryTemplate.php` (deleted), `##Extras/PostToAPITemplate.ps1` (deleted)
 
-Use a prepared statement: `mysqli_prepare`, `bind_param('ssss', $host, $script, $ok, $error)`, `execute`. Also use a constant-time comparison (`hash_equals`) for the token, although that matters far less than just rotating the secret.
+The template had two issues:
 
-`telemmentryTemplate.php` is described as a template, but it's checked into the public repo and the README never says "this is a deliberately-broken example." It will get copy-pasted as-is. Either delete it, or rewrite it so the bad-example version isn't the one people pick up.
+1. **Hardcoded shared secret** — `'BRRRRR_skibidi_dop_dop_dop_yes_yes!'` lived in both the PHP server template and the PowerShell client template. Public repo = public secret.
+2. **Classic SQL injection** — `$script`, `$host`, `$error` from a JSON body were concatenated directly into an `INSERT` statement. The token check didn't help because the token was public.
+
+The fix would have been a prepared statement (`mysqli_prepare` + `bind_param`) and a non-hardcoded secret. Since nothing uses the templates, deletion was cleaner.
+
+</details>
 
 ### H5 — `setup.php` and `update.php` are unauthenticated
 
