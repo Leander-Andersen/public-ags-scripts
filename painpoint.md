@@ -85,11 +85,14 @@ The decrypt path on lines 2609-2620 reads both from the same file. Anyone who ke
 
 Option 2 is the right destination. Option 1 is the right thing to do today regardless.
 
-### H1 — Stored XSS in the root file browser
+### H1 — Stored XSS in the root file browser  ✅ RESOLVED
 
-**File:** [##Extras/index.php:37-69](##Extras/index.php#L37-L69)
+**Status:** All filename/path output in `##Extras/index.php` now goes through `htmlspecialchars(..., ENT_QUOTES, 'UTF-8')` before reaching the DOM. URL paths additionally pass through `rawurlencode` per segment (preserving `/` separators) so quirky characters survive both the URL trip and the HTML escape. A file named `<img src=x onerror=alert(1)>.txt` now renders as visible text, not executable HTML. Updater redeploys `##Extras/index.php` to the web root automatically — no operator action needed.
 
-The directory listing inserts `$file`, `$href`, and `$relPath` into HTML without `htmlspecialchars()`:
+<details>
+<summary>Original finding (kept for the record)</summary>
+
+The directory listing inserted `$file`, `$href`, and `$relPath` into HTML without `htmlspecialchars()`:
 
 ```php
 $items_html .= '<li>'
@@ -98,9 +101,9 @@ $items_html .= '<li>'
     ...
 ```
 
-Any file whose name contains HTML — e.g. `<img src=x onerror=alert(document.domain)>.txt` — executes JavaScript in the viewer's session. Exploitation requires the ability to drop a file into a directory under the docroot. That isn't an unauthenticated path today, but it becomes one the moment any upload feature, misconfigured share, or compromised tool writes to that directory. `setup.php` writes `.bak` files into the same tree; any future feature that touches user-controlled filenames inherits this.
+Any file whose name contained HTML — e.g. `<img src=x onerror=alert(document.domain)>.txt` — executed JavaScript in the viewer's session. The breadcrumb at lines 22-28 already used `htmlspecialchars`; the rest of the file did not.
 
-Wrap `$file` and `$relPath` with `htmlspecialchars(..., ENT_QUOTES, 'UTF-8')` everywhere they're echoed. The breadcrumb at lines 22-28 already does this — apply the same treatment below.
+</details>
 
 ### H2 — viewer.php docroot check is a prefix match, not a containment check
 
