@@ -1,7 +1,16 @@
 <?php
 ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/php-errors.log');
+// See setup.php: log to system temp dir so the file isn't served by the webserver.
+ini_set('error_log', sys_get_temp_dir() . '/ags-php-errors.log');
 
+// See setup.php for rationale on the session cookie flags.
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────

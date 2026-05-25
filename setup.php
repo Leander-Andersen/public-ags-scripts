@@ -1,7 +1,24 @@
 <?php
 ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/php-errors.log');
+// Write PHP errors to the system temp dir (e.g. /tmp/ags-php-errors.log on
+// Linux) instead of the scripts folder itself. The scripts folder is served
+// by the webserver, so a log file inside it is fetchable as a URL and may
+// leak filesystem paths, query strings, and partial stack traces.
+ini_set('error_log', sys_get_temp_dir() . '/ags-php-errors.log');
 
+// Lock down the session cookie before starting the session.
+//  - HttpOnly  : JS can't read it (so an XSS can't steal it)
+//  - SameSite=Strict : browsers refuse to send it from cross-site requests
+//  - Secure    : only sent over HTTPS, *if* the current request is HTTPS
+//                (during first-run setup over plain HTTP we leave it off so
+//                the page still works; once HTTPS is in place the flag flips)
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
 
 // ── Lock check ────────────────────────────────────────────────────────────────
