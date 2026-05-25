@@ -521,7 +521,11 @@ echo '<h5 class="mb-1">Review changes</h5>';
 echo '<p class="text-muted mb-3">Lines in <span class="text-danger fw-semibold">red</span> will be replaced with the <span class="text-success fw-semibold">green</span> version.</p>';
 
 if (empty($preview)) {
-    echo '<div class="alert alert-info">No placeholders found in any files — nothing to change.</div>';
+    // Migration / re-run path: placeholders were already substituted by a
+    // previous setup (or by update.php's re-apply step). No file edits are
+    // needed, but we still want to write the config (admin password hash)
+    // and recreate setup.lock — so show the form anyway.
+    echo '<div class="alert alert-info">No file changes needed — placeholders are already substituted to your current values. Clicking apply still writes the admin-password hash to <code>.setup-config.json</code> and recreates <code>setup.lock</code>.</div>';
 } else {
     foreach ($preview as $entry) {
         echo '<div class="file-header">' . htmlspecialchars($entry['file']) . '</div>';
@@ -533,16 +537,18 @@ if (empty($preview)) {
         }
         echo '</div>';
     }
-
-    echo '<form method="post" class="mt-3">';
-    echo '<input type="hidden" name="csrf_token"    value="' . htmlspecialchars($csrf)    . '">';
-    echo '<input type="hidden" name="script_domain" value="' . htmlspecialchars($domain)  . '">';
-    echo '<input type="hidden" name="folder_name"   value="' . htmlspecialchars($folder)  . '">';
-    echo '<input type="hidden" name="confirm"        value="1">';
-    echo '<button type="submit" class="btn btn-success me-2">Apply changes</button>';
-    echo '<a href="setup.php" class="btn btn-outline-secondary">Back</a>';
-    echo '</form>';
 }
+
+// Always show the apply form — preview may be empty but config + lock
+// still need to be written.
+echo '<form method="post" class="mt-3">';
+echo '<input type="hidden" name="csrf_token"    value="' . htmlspecialchars($csrf)    . '">';
+echo '<input type="hidden" name="script_domain" value="' . htmlspecialchars($domain)  . '">';
+echo '<input type="hidden" name="folder_name"   value="' . htmlspecialchars($folder)  . '">';
+echo '<input type="hidden" name="confirm"        value="1">';
+echo '<button type="submit" class="btn btn-success me-2">Apply changes</button>';
+echo '<a href="setup.php" class="btn btn-outline-secondary">Back</a>';
+echo '</form>';
 
 page_close();
 
