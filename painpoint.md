@@ -185,34 +185,30 @@ Mitigation depends on how paranoid you want to be. The cheap version is "require
 
 ## MEDIUM
 
-### M1 — `php-errors.log` is written into the web-served directory
+### M1 — `php-errors.log` is written into the web-served directory  ✅ RESOLVED
 
-**File:** [setup.php:2-3](setup.php#L2-L3), [update.php:2-3](update.php#L2-L3)
+**Status:** Both `setup.php` and `update.php` now log to `sys_get_temp_dir() . '/ags-php-errors.log'` (e.g. `/tmp/ags-php-errors.log` on Linux). The system temp dir is outside the webserver's document root, so the log is no longer fetchable as a URL.
 
-```php
-ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . '/php-errors.log');
-```
+**Operator action (one-time):** if a `php-errors.log` exists in the old location (`<webroot>/<scripts-folder>/php-errors.log`), delete it manually — the updater won't touch it, and it's still HTTP-fetchable until removed.
 
-`__DIR__` is the scripts folder, which is served by the webserver. `.gitignore` excludes `*.log` from commits but not from the HTTP world. Anyone who guesses the URL `/scripts/php-errors.log` reads PHP error traces, which often include filesystem paths, query strings, and partial stack frames. Move the log file outside the docroot, or use the system PHP log target.
+### M2 — Subresource integrity missing on every CDN script  ✅ RESOLVED (mostly)
 
-### M2 — Subresource integrity missing on every CDN script
+**Status:**
 
-**File:** [##Extras/viewer.php:64-73](##Extras/viewer.php#L64-L73), [##Extras/index.php:88-118](##Extras/index.php#L88-L118), [countryCodes/index.php:7](countryCodes/index.php#L7)
+- `##Extras/viewer.php` — `github-markdown-css`, the initial `highlight.js` atom-one-dark theme, `marked`, `highlight.min.js`, and DOMPurify now ship with `integrity=sha512-...` + `crossorigin=anonymous` + `referrerpolicy=no-referrer`. `marked@latest` was replaced with `marked@11.1.1` (no more version float). The runtime theme-swap to `atom-one-light` via `<link>.href` loses SRI on swap — that's an accepted gap; the light-theme CSS is a styling concern, not a script execution vector.
+- `countryCodes/index.php` — Bootstrap (CSS + JS bundle) bumped from `5.3.0-alpha1` to `5.3.2` (cdnjs, sha512). The local jQuery file was replaced with a CDN-hosted `jquery 3.7.1` line with SRI (see M3).
+- Google Fonts CSS (`fonts.googleapis.com/...`) is exempt — the returned CSS varies per user agent, so SRI is impractical. Documented inline in `viewer.php`.
+- Cloudflare Web Analytics (`static.cloudflareinsights.com/beacon.min.js`) and Matomo are intentionally left without SRI (rotating files). Documented as known gaps.
 
-`marked.min.js`, `highlight.min.js`, the highlight.js themes, Bootstrap, jQuery, DataTables, GitHub-markdown-css, Material Symbols, and the Cloudflare Insights beacon are all loaded without an `integrity=` attribute. The Bootstrap line in `countryCodes/index.php` does set `integrity=` and `crossorigin="anonymous"` — match that pattern everywhere. A CDN compromise (or a typo-squatted host) silently injects JS into every page on the site.
+**Still open:** DataTables (`countryCodes/jquery.dataTables.min.js`, `dataTables.bootstrap5.min.js`) — left as local files for now; bump is a follow-up.
 
-Cloudflare Web Analytics intentionally doesn't ship an SRI hash (the beacon URL is `static.cloudflareinsights.com/beacon.min.js` and Cloudflare rotates it). If you want to keep it, accept the risk explicitly and call it out — don't just leave it next to scripts that *do* have SRI.
+### M3 — Outdated front-end libraries in `countryCodes/`  ✅ RESOLVED (mostly)
 
-### M3 — Outdated front-end libraries in `countryCodes/`
+**Status:**
 
-**File:** [countryCodes/index.php:7-8](countryCodes/index.php#L7-L8), [countryCodes/jquery-3.5.1.js](countryCodes/jquery-3.5.1.js), [countryCodes/dataTables.bootstrap5.min.js](countryCodes/dataTables.bootstrap5.min.js)
-
-- **jQuery 3.5.1** — affected by CVE-2020-11022 / CVE-2020-11023 (HTML manipulation XSS). Fixed in 3.5.0… wait, fixed in *3.5.0* for one and 3.5.0 for the other — but 3.5.1 specifically still has open issues; bump to 3.7.x.
-- **Bootstrap 5.3.0-alpha1** — alphas should never be in production. Move to the current stable 5.3.x release.
-- **DataTables** — version not declared in the filename. Verify against the current 1.x/2.x release and update.
-
-The page has no dynamic input (it's a static country table), so the attack surface is small *today*, but the libraries are pulled in via `<script src=...>` and any future query handler or filter feature picks up the vulnerable behaviour.
+- **jQuery 3.5.1** (CVE-2020-11022 / CVE-2020-11023) — local file `countryCodes/jquery-3.5.1.js` deleted, replaced with cdnjs `jquery@3.7.1` + sha512 SRI. The bytes of jQuery no longer ship in this repo.
+- **Bootstrap 5.3.0-alpha1** — bumped to `5.3.2` stable. CSS + JS bundle both moved from jsdelivr to cdnjs so the sha512 SRI matches what's actually served.
+- **DataTables** — still local (`jquery.dataTables.min.js`, `dataTables.bootstrap5.min.js`, `dataTables.bootstrap5.min.css`). cdnjs's current DataTables library entry is stale; the official `datatables.net` CDN is the right replacement, but doing it cleanly means also auditing the DataTables/Bootstrap-5 styling glue. Punted for now — no known active CVE blocks shipping the current local copy. **Status: open**, follow-up.
 
 ### M4 — Permission posture: webserver user owns the entire docroot
 
@@ -227,39 +223,29 @@ The installer makes `www-data` (or equivalent) the owner of the docroot and ever
 
 The cleanest fix is to give the scripts folder its own docroot (so the webserver user only owns the scripts subtree, not unrelated siblings). If that's impractical, accept the risk in the README — at the moment the install instructions read as if this is a normal thing to do.
 
-### M5 — SysPulse self-deletes after exfiltrating data
+### M5 — SysPulse self-delete: unsafe `$target` interpolation  ✅ RESOLVED (partial)
 
-**File:** [SysPulse/SysPulse.ps1:2691-2700](SysPulse/SysPulse.ps1#L2691-L2700)
+**Status:** The `$target` value (which is `$PSCommandPath`) is no longer interpolated directly into a `-Command` string. It now goes through a PowerShell single-quote escape (`'` → `''`) and the resulting command is base64-encoded and passed via `-EncodedCommand`. A path containing single quotes (e.g. `C:\Users\Leander's Scripts\SysPulse_pkg.ps1`) no longer breaks the command or lets the path influence command parsing.
 
-When run with embedded SMTP credentials, the script collects diagnostics (drivers, event logs, local users, BIOS info, minidumps), emails them, then deletes itself:
+The arguments to `Start-Process` are now also passed as an array (`-ArgumentList @(...)`) rather than a single string, which is the recommended PowerShell pattern for argument boundaries.
+
+**Self-delete behaviour itself is kept by design** — it's how the packaged distribution model works (see `syspulse-distribution-model` memory + threat-model #3). The "looks like malware" concern was a stylistic note, not a security finding; if you want to add a consent prompt later, that's a UX decision rather than a hardening one.
+
+<details>
+<summary>Original finding (kept for the record)</summary>
 
 ```powershell
 $cmd = "Start-Sleep -Milliseconds 800; Remove-Item -LiteralPath '$target' -Force"
 Start-Process powershell.exe -ArgumentList "-NoProfile -NonInteractive -WindowStyle Hidden -Command $cmd"
 ```
 
-This is exactly the shape of malware behaviour: silent network exfiltration plus self-erase plus hidden window. AV may flag it. End-users on managed devices definitely won't be able to run it. And `$target` is interpolated directly into a `-Command` string — if `$PSCommandPath` ever contains a single quote (a folder named `Leander's Scripts`), the command breaks or, worse, executes attacker-influenced content.
+A single quote anywhere in `$PSCommandPath` (a folder named `Leander's Scripts`) broke the inner string, and the path was effectively shell-interpolated into a command line.
 
-If the workflow is "give this to a user, they double-click, we get the report," at least:
+</details>
 
-1. Add a clearly-worded consent prompt on first run that lists exactly what is collected and where it's sent.
-2. Drop the self-delete (it's not security; it's only making the script look more suspicious).
-3. Quote `$target` properly: pass it as a `-LiteralPath` *argument* via `-ArgumentList @(...)`, not by string interpolation.
+### M6 — Session cookies have no `Secure` / `HttpOnly` / `SameSite` attributes  ✅ RESOLVED
 
-### M6 — Session cookies have no `Secure` / `HttpOnly` / `SameSite` attributes
-
-**File:** [setup.php:5](setup.php#L5), [update.php:5](update.php#L5)
-
-`session_start()` is called without `session_set_cookie_params()` or matching `php.ini` settings. The CSRF token is stored in the session, and the cookie that carries the session id has whatever defaults the host PHP gives it — usually no `Secure`, no `HttpOnly`, no `SameSite=Lax/Strict`. Combined with H1/H3 (any XSS gives `document.cookie`), this lets an attacker steal the session and replay CSRF-protected POSTs.
-
-```php
-session_set_cookie_params([
-    'secure'   => true,
-    'httponly' => true,
-    'samesite' => 'Strict',
-]);
-session_start();
-```
+**Status:** `setup.php` and `update.php` now call `session_set_cookie_params()` before `session_start()` with `HttpOnly=true`, `SameSite=Strict`, and `Secure` conditional on whether the current request is HTTPS (so first-run plain-HTTP setup still works; the flag flips on automatically once HTTPS is in place). The CSRF-token session cookie is no longer readable from JS and won't be sent on cross-site requests.
 
 ---
 
@@ -281,11 +267,9 @@ git config --global --add safe.directory "$DEST"
 
 `--global` here means root's global config, not the system config. It's idempotent and not exploitable, but it accumulates entries every time the installer runs on a new path. Use `git -c safe.directory="$DEST" -C "$DEST" fetch origin` to scope it to the single invocation.
 
-### L3 — `pull_request_target` workflow with version-floated action
+### L3 — `pull_request_target` workflow with version-floated action  ✅ RESOLVED
 
-**File:** [.github/workflows/label.yml:9-22](.github/workflows/label.yml#L9-L22)
-
-The labeler workflow runs on `pull_request_target`, which gives it `secrets` and write tokens against PRs from forks. Today it only calls `actions/labeler@v4` and doesn't check out PR code, so there's no exploit path. The risk is forward-looking: anyone who later adds a `actions/checkout@v4` with `ref: ${{ github.event.pull_request.head.sha }}` followed by *anything* (linting, building, running scripts) hands the GITHUB_TOKEN to PR authors. Pin `actions/labeler` to a commit SHA, and keep a comment on the file warning that no checkout step may be added without changing the trigger.
+**Status:** `actions/labeler@v4` is now pinned to `ac9175f8a1f3625fd0d4fb234536d26811351594` (the SHA `v4` resolved to at audit time). The version is preserved in a trailing comment so the file stays human-readable. Added an inline warning above the step that this workflow uses `pull_request_target` and a PR-code checkout must not be added without changing the trigger.
 
 ### L4 — PowerShell scripts widen `ExecutionPolicy`
 
@@ -331,22 +315,24 @@ These came up during the review and looked suspicious at first but didn't turn i
 | H4 | Telemetry template SQLi + key | ✅ resolved (deleted) |
 | H5 | No auth on `setup.php` / `update.php` | open — needs operator decision |
 | H6 | Updater deploys arbitrary origin branches | open — paired with H5 |
-| M1 | `php-errors.log` in webroot | open |
-| M2 | Missing SRI on CDN scripts | open |
-| M3 | Outdated `countryCodes/` libs | open |
+| M1 | `php-errors.log` in webroot | ✅ resolved |
+| M2 | Missing SRI on CDN scripts | ✅ resolved (mostly — DataTables still local) |
+| M3 | Outdated `countryCodes/` libs | ✅ resolved (mostly — DataTables follow-up) |
 | M4 | Webserver user owns docroot | open |
-| M5 | SysPulse self-delete + `$target` interpolation | open |
-| M6 | Session cookies missing flags | open |
-| L1–L6 | Hygiene items | open |
+| M5 | SysPulse self-delete + `$target` interpolation | ✅ resolved (partial — self-delete is intentional) |
+| M6 | Session cookies missing flags | ✅ resolved |
+| L1 | curl \| sudo bash install pattern | open |
+| L2 | `git config --global` accumulation | open |
+| L3 | Floating `actions/labeler@v4` | ✅ resolved |
+| L4 | Hextract ExecutionPolicy | open |
+| L5 | `Read-MenuChoice` Ctrl+C | open |
+| L6 | PnS oversharing | open |
 
 ## Suggested order of operations (what's left)
 
 1. **H5 + H6** — paired auth gate on `setup.php`/`update.php`. Needs an operator decision on the method (HTTP basic auth in the webserver config vs. a token in `.setup-config.json`).
-2. **M2 + M3** — batch the CDN hygiene: SRI hashes on all third-party scripts (including the DOMPurify just added in H3), and bump `countryCodes/` to current Bootstrap/jQuery/DataTables.
-3. **M1** — move `php-errors.log` out of the served directory.
-4. **M6** — session cookie attributes on `setup.php` / `update.php`.
-5. **M5** — quote `$target` properly in the SysPulse self-delete path. The self-delete behaviour itself is intentional (see [[syspulse-distribution-model]]) and kept.
-6. **L3** — pin `actions/labeler` to a commit SHA.
-7. Everything else (L1, L2, L4, L5, L6, M4) is hygiene — schedule whenever.
+2. **DataTables follow-up** — bump `countryCodes/jquery.dataTables.min.js` and `dataTables.bootstrap5.min.js` to current `datatables.net` release. Verify the Bootstrap-5 styling glue still lines up.
+3. **M4** — webserver user owns docroot. Documentation + operational fix, not a code change in this repo. Skip unless you're standing up a fresh host.
+4. **L1, L2, L4, L5, L6** — hygiene. Schedule whenever, no urgency.
 
 Reports go to leander@isame12.xyz per [SECURITY.md](SECURITY.md). If any of the above is already known and tracked, point me at the issue and I'll cross-reference.

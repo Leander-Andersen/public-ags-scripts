@@ -4,7 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Country Code Quick Lookup</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <!-- Bootstrap 5.3.2 (stable). Previously pinned to 5.3.0-alpha1 which
+         should never have been in production. Source switched from jsdelivr
+         to cdnjs so the SRI hash matches the file cdnjs serves; jsdelivr
+         and cdnjs both publish the same upstream Bootstrap, but their
+         build pipelines are independent and can produce different bytes. -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha512-b2QcS5SsA8tZodcDtGRELiGv5SaKSk1vDHDaQRda0htPYWZ6046lr3kJ5bAAQdpV2mmA/4v0wQF9MyU6/pDIAg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer">
     <link href="dataTables.bootstrap5.min.css" rel="stylesheet">
   </head>
   <body>
@@ -1229,8 +1236,17 @@
             </table>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
-    <script src="jquery-3.5.1.js"></script>
+    <!-- Bootstrap 5.3.2 bundle, served from cdnjs with sha512 SRI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"
+            integrity="sha512-X/YkDZyjTf4wyc2Vy16YGCPHwAY8rZJY+POgokZjQB2mhIRFJCckEGc6YyX9eNsPfn0PzThEuNs+uaomE5CO6A=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- jQuery 3.7.1 (cdnjs + sha512). Previously a local copy of jQuery
+         3.5.1 was checked into the repo; it was affected by CVE-2020-11023
+         (XSS via untrusted HTML in DOM manipulation). Local file removed. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+            integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- DataTables still served from local files; bumping it is a follow-up. -->
     <script src="jquery.dataTables.min.js"></script>
     <script src="dataTables.bootstrap5.min.js"></script>
     <script>
