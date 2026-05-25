@@ -100,10 +100,16 @@ $title = htmlspecialchars(basename($requested));
             integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
             crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-    <!-- Apply saved theme before first paint -->
+    <!-- Apply saved theme before first paint. First visit picks the
+         theme matching the OS preference (light/dark); OverPinku is
+         opt-in only. -->
     <script>
         (function () {
-            var t = localStorage.getItem('theme') || 'dark';
+            var t = localStorage.getItem('theme');
+            if (!t) {
+                t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+                    ? 'light' : 'dark';
+            }
             document.documentElement.dataset.theme = t;
             if (t !== 'dark') {
                 var l = document.getElementById('hljs-theme');
@@ -218,9 +224,23 @@ $title = htmlspecialchars(basename($requested));
 
         /* ── Page container ───────────────────────────────── */
         .container {
-            max-width: 980px;
+            max-width: 1240px;
             margin: 0 auto;
             padding: 20px;
+        }
+
+        /* ── Reading layout: content + sticky TOC on the right ──
+           Single column on narrow screens (TOC collapses to a
+           full-width nav at the top via CSS). */
+        .reading-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px;
+            gap: 28px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .reading-layout { grid-template-columns: 1fr; }
+            .toc { order: -1; position: static !important; max-height: 320px; overflow-y: auto; }
         }
 
         /* ── Markdown card ────────────────────────────────── */
@@ -230,6 +250,125 @@ $title = htmlspecialchars(basename($requested));
             border-radius: 10px;
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
             color: var(--text);
+            min-width: 0; /* let it shrink inside the grid */
+        }
+
+        /* ── Table of contents ─────────────────────────────── */
+        .toc {
+            position: sticky;
+            top: 16px;
+            background: var(--card-bg);
+            border: 1px solid rgba(128,128,128,0.18);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 0.85rem;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .toc-title {
+            font-weight: 500;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+        .toc-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .toc-list li { margin: 2px 0; }
+        .toc-list a {
+            color: var(--muted);
+            text-decoration: none;
+            display: block;
+            padding: 3px 6px;
+            border-radius: 4px;
+            border-left: 2px solid transparent;
+            transition: color 0.15s, background 0.15s, border-color 0.15s;
+            line-height: 1.4;
+        }
+        .toc-list a:hover {
+            color: var(--text);
+            background: rgba(128,128,128,0.08);
+            text-decoration: none;
+        }
+        .toc-list a.toc-active {
+            color: var(--text);
+            border-left-color: var(--accent);
+            background: rgba(128,128,128,0.08);
+        }
+        .toc-list .toc-h2 { padding-left: 18px; }
+        .toc-list .toc-h3 { padding-left: 30px; font-size: 0.95em; }
+        [data-theme="overpinku"] .toc-list a.toc-active {
+            border-left-color: #e91e8c;
+            background: rgba(255, 20, 147, 0.08);
+        }
+
+        /* ── Heading anchor links ──────────────────────────── */
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            position: relative;
+            scroll-margin-top: 16px; /* room above the heading when anchored */
+        }
+        .markdown-body .heading-anchor {
+            position: absolute;
+            left: -1.4em;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            text-decoration: none;
+            color: var(--muted);
+            font-weight: 300;
+            transition: opacity 0.15s, color 0.15s;
+            padding: 0 0.3em;
+        }
+        .markdown-body h1:hover .heading-anchor,
+        .markdown-body h2:hover .heading-anchor,
+        .markdown-body h3:hover .heading-anchor,
+        .markdown-body h4:hover .heading-anchor,
+        .markdown-body h5:hover .heading-anchor,
+        .markdown-body h6:hover .heading-anchor,
+        .markdown-body .heading-anchor:focus { opacity: 1; }
+        .markdown-body .heading-anchor:hover { color: var(--accent); }
+        @media (max-width: 600px) {
+            .markdown-body .heading-anchor { display: none; }
+        }
+
+        /* ── Copy toast ────────────────────────────────────── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            padding: 10px 18px;
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid rgba(128,128,128,0.25);
+            border-radius: 999px;
+            font-size: 0.88rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100000;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
+        }
+        .toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        [data-theme="overpinku"] .toast {
+            background: #fff8fa;
+            border-color: rgba(255, 20, 147, 0.35);
+            color: #5c1a3a;
+            box-shadow: 0 8px 24px rgba(233, 30, 140, 0.25);
         }
 
         /* ── Text / links inside markdown ─────────────────── */
@@ -490,8 +629,20 @@ $title = htmlspecialchars(basename($requested));
 
         <h1 class="file-title"><?php echo $title; ?></h1>
 
-        <article id="content" class="markdown-body">Loading…</article>
+        <div class="reading-layout">
+            <article id="content" class="markdown-body">Loading…</article>
+            <!-- TOC is populated by JS after marked.parse(); hidden when
+                 the document has fewer than 3 headings. -->
+            <aside id="toc" class="toc" aria-label="Table of contents" hidden>
+                <div class="toc-title">On this page</div>
+                <ol class="toc-list"></ol>
+            </aside>
+        </div>
     </div>
+
+    <!-- Live region for the "Copied ♡" toast — single reusable element,
+         positioned and styled by CSS, content + visibility driven by JS. -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <a class="gh-link" href="https://github.com/Leander-Andersen/public-ags-scripts/issues/new/choose"
        target="_blank" rel="noopener" aria-label="Report bug or request feature">
@@ -526,8 +677,29 @@ $title = htmlspecialchars(basename($requested));
                 applyTheme(NEXT[document.documentElement.dataset.theme] || 'light', true);
             };
 
-            var saved = localStorage.getItem('theme') || 'dark';
+            // First visit: match OS preference (skip overpinku — opt-in only).
+            var saved = localStorage.getItem('theme');
+            if (!saved) {
+                saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+                    ? 'light' : 'dark';
+            }
             applyTheme(saved, false);
+
+            // ── Toast helper ──────────────────────────────────
+            // Single shared element, fades in then out. Calling show()
+            // while a toast is visible resets the timeout — useful for
+            // rapid-fire copy clicks.
+            var toastEl = document.getElementById('toast');
+            var toastTimer = null;
+            function showToast(message) {
+                if (!toastEl) return;
+                toastEl.textContent = message;
+                toastEl.classList.add('visible');
+                if (toastTimer) clearTimeout(toastTimer);
+                toastTimer = setTimeout(function () {
+                    toastEl.classList.remove('visible');
+                }, 1600);
+            }
 
             // ── OverPinku: hearts on click ─────────────────────
             var _ph = ['♥', '♥', '♥', '♡', '❤'];
@@ -607,6 +779,80 @@ $title = htmlspecialchars(basename($requested));
                 try { hljs.highlightElement(el); } catch (e) {}
             });
 
+            // ── Heading anchors + table of contents ────────────
+            // Walk h1-h3 inside the rendered markdown, slug-ify the text
+            // into an id, and prepend a "#" link visible on hover so the
+            // section is permalink-able. Then build the TOC sidebar from
+            // the same set of headings.
+            function slugify(text) {
+                return text
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-|-$/g, '');
+            }
+
+            var seenSlugs = Object.create(null);
+            function uniqueSlug(text) {
+                var base = slugify(text) || 'section';
+                var slug = base, i = 2;
+                while (seenSlugs[slug]) { slug = base + '-' + i++; }
+                seenSlugs[slug] = true;
+                return slug;
+            }
+
+            var headings = target.querySelectorAll('h1, h2, h3');
+            headings.forEach(function (h) {
+                if (!h.id) h.id = uniqueSlug(h.textContent || '');
+                var a = document.createElement('a');
+                a.className = 'heading-anchor';
+                a.href = '#' + h.id;
+                a.setAttribute('aria-label', 'Anchor link to ' + (h.textContent || 'section'));
+                a.textContent = '#';
+                h.insertBefore(a, h.firstChild);
+            });
+
+            // Build TOC only when the document has enough headings to
+            // justify one — for tiny READMEs it's just clutter.
+            var toc = document.getElementById('toc');
+            if (toc && headings.length >= 3) {
+                var tocList = toc.querySelector('.toc-list');
+                headings.forEach(function (h) {
+                    var li = document.createElement('li');
+                    var link = document.createElement('a');
+                    link.href = '#' + h.id;
+                    // Use textContent and strip the leading "#" we just added
+                    link.textContent = (h.textContent || '').replace(/^#/, '').trim();
+                    link.className = 'toc-' + h.tagName.toLowerCase();
+                    link.dataset.headingId = h.id;
+                    li.appendChild(link);
+                    tocList.appendChild(li);
+                });
+                toc.hidden = false;
+
+                // Highlight the section the reader is currently in by
+                // observing which heading is closest to the top of the
+                // viewport. Updates the matching TOC link's class.
+                if ('IntersectionObserver' in window) {
+                    var tocLinks = toc.querySelectorAll('a');
+                    var byId = {};
+                    tocLinks.forEach(function (l) { byId[l.dataset.headingId] = l; });
+                    var io = new IntersectionObserver(function (entries) {
+                        entries.forEach(function (entry) {
+                            var link = byId[entry.target.id];
+                            if (!link) return;
+                            if (entry.isIntersecting) {
+                                tocLinks.forEach(function (l) { l.classList.remove('toc-active'); });
+                                link.classList.add('toc-active');
+                            }
+                        });
+                    }, { rootMargin: '-10% 0px -75% 0px', threshold: 0 });
+                    headings.forEach(function (h) { io.observe(h); });
+                }
+            }
+
             // ── Copy buttons ──────────────────────────────────
             function makeCopyButtons() {
                 Array.from(document.querySelectorAll('pre')).forEach(pre => {
@@ -627,6 +873,7 @@ $title = htmlspecialchars(basename($requested));
                             pre.classList.add('copied');
                             btn.querySelector('.label').textContent = 'Copied';
                             btn.querySelector('.tick').style.display = 'inline';
+                            showToast('Copied to clipboard ♡');
                             setTimeout(() => {
                                 pre.classList.remove('copied');
                                 btn.querySelector('.label').textContent = 'Copy';
@@ -643,12 +890,14 @@ $title = htmlspecialchars(basename($requested));
                                 sel.removeAllRanges();
                                 pre.classList.add('copied');
                                 btn.querySelector('.label').textContent = 'Copied';
+                                showToast('Copied to clipboard ♡');
                                 setTimeout(() => {
                                     pre.classList.remove('copied');
                                     btn.querySelector('.label').textContent = 'Copy';
                                 }, 1200);
                             } catch (e2) {
                                 console.error('Copy failed', e2);
+                                showToast('Copy failed — select the text manually');
                             }
                         }
                     });
