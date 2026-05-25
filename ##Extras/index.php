@@ -505,6 +505,49 @@ function formatSizeUnits($bytes)
             color: #5c1a3a;
         }
 
+        /* ── Admin (updater) link ─────────────────────────── */
+        /* Same look as .gh-link / .theme-toggle, slotted below them in the
+           top-right stack. Icon-only — title attribute carries the label
+           so hovering still tells you what it is. */
+        .admin-link {
+            position: fixed;
+            top: 96px;
+            right: 16px;
+            background: rgba(128, 128, 128, 0.15);
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.85rem;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+            text-decoration: none;
+            transition: background-color 0.15s, color 0.15s, transform 0.2s;
+        }
+        .admin-link:hover {
+            background: rgba(128, 128, 128, 0.25);
+            text-decoration: none;
+            color: var(--muted);
+        }
+        .admin-link:hover .material-symbols-outlined {
+            transform: rotate(40deg);
+        }
+        .admin-link .material-symbols-outlined {
+            transition: transform 0.3s ease;
+        }
+        [data-theme="overpinku"] .admin-link {
+            background: rgba(255, 20, 147, 0.12);
+            border-color: rgba(255, 20, 147, 0.3);
+            color: #5c1a3a;
+        }
+        [data-theme="overpinku"] .admin-link:hover {
+            background: rgba(255, 20, 147, 0.22);
+            color: #5c1a3a;
+        }
+
         [data-theme="overpinku"] .theme-toggle {
             background: rgba(255, 20, 147, 0.12);
             border-color: rgba(255, 20, 147, 0.3);
@@ -617,6 +660,15 @@ function formatSizeUnits($bytes)
        target="_blank" rel="noopener" aria-label="Report bug or request feature">
         <span class="material-symbols-outlined" style="font-size:18px">bug_report</span>
         <span>Bug / Feature</span>
+    </a>
+
+    <!-- Updater shortcut. Visible to everyone, but the page itself requires
+         the admin password (set during setup.php) so a click from a
+         non-operator just lands on the login form. <SCRIPT_FOLDER> is
+         substituted to the actual folder name by setup.php. -->
+    <a class="admin-link" href="/<SCRIPT_FOLDER>/update.php"
+       title="Updater (admin)" aria-label="Open the updater">
+        <span class="material-symbols-outlined" style="font-size:18px">settings</span>
     </a>
 
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
