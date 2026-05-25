@@ -8,3 +8,4 @@
 # Nginx users — see README for the equivalent error_page directive.
 
 ErrorDocument 404 /404.php
+ErrorDocument 403 /403.php

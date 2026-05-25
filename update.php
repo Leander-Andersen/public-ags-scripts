@@ -485,7 +485,7 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     //    keeps them in sync. .htaccess routes 404s to the themed 404.php below.
     $webroot = realpath($_SERVER['DOCUMENT_ROOT']);
     $extras  = $BASE . '/##Extras';
-    $webroot_files = ['index.php', 'viewer.php', 'globalVariables.php', '.htaccess', '404.php'];
+    $webroot_files = ['index.php', 'viewer.php', 'globalVariables.php', '.htaccess', '404.php', '403.php'];
     $copy_results  = [];
     foreach ($webroot_files as $wf) {
         $src  = $extras . '/' . $wf;

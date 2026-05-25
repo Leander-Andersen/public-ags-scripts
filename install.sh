@@ -85,7 +85,7 @@ fi
 # overwrite it — merge manually after install if so.
 echo "[2/4] Copying file browser to web root..."
 EXTRAS="$DEST/##Extras"
-WEBROOT_FILES=(index.php viewer.php globalVariables.php .htaccess 404.php)
+WEBROOT_FILES=(index.php viewer.php globalVariables.php .htaccess 404.php 403.php)
 for f in "${WEBROOT_FILES[@]}"; do
     if [[ -f "$EXTRAS/$f" ]]; then
         cp "$EXTRAS/$f" "$WEBROOT/$f"

@@ -129,20 +129,25 @@ The password hash is bcrypt'd before being written, so even if the file were to 
 
 ---
 
-## Custom 404 page
+## Custom error pages
 
-The installer deploys a webroot-level `.htaccess` with `ErrorDocument 404 /404.php` and the matching `404.php` (OverPinku-themed, falling sakura, click-burst hearts, links back to the file browser). Any URL on the domain that doesn't resolve to a real file lands on the cute page instead of Apache's default.
+The installer deploys a webroot-level `.htaccess` plus two themed error pages — both OverPinku, both with falling sakura, click-burst hearts, and a link back to the file browser. Any URL on the domain that triggers the matching status lands on the themed page instead of Apache's default.
+
+| Status | Page | Fires on |
+|---|---|---|
+| **404** | `/404.php` | URLs that don't resolve to a real file |
+| **403** | `/403.php` | URLs blocked by `.htaccess` deny rules (`.setup-config.json`, `setup.lock`, `*.bak`, `*.log`, etc.) |
 
 **Nginx equivalent** (add to your server block):
 
 ```nginx
 error_page 404 /404.php;
-location = /404.php {
-    internal;
-}
+error_page 403 /403.php;
+location = /404.php { internal; }
+location = /403.php { internal; }
 ```
 
-If your webroot already has a `.htaccess` for another tool, the install / updater step overwrites it. Merge the `ErrorDocument 404 /404.php` line into your existing rules instead.
+If your webroot already has a `.htaccess` for another tool, the install / updater step overwrites it. Merge the `ErrorDocument` lines into your existing rules instead.
 
 ---
 
