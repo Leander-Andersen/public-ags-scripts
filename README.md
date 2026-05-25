@@ -129,6 +129,28 @@ The password hash is bcrypt'd before being written, so even if the file were to 
 
 ---
 
+## Custom error pages
+
+The installer deploys a webroot-level `.htaccess` plus two themed error pages — both OverPinku, both with falling sakura, click-burst hearts, and a link back to the file browser. Any URL on the domain that triggers the matching status lands on the themed page instead of Apache's default.
+
+| Status | Page | Fires on |
+|---|---|---|
+| **404** | `/404.php` | URLs that don't resolve to a real file |
+| **403** | `/403.php` | URLs blocked by `.htaccess` deny rules (`.setup-config.json`, `setup.lock`, `*.bak`, `*.log`, etc.) |
+
+**Nginx equivalent** (add to your server block):
+
+```nginx
+error_page 404 /404.php;
+error_page 403 /403.php;
+location = /404.php { internal; }
+location = /403.php { internal; }
+```
+
+If your webroot already has a `.htaccess` for another tool, the install / updater step overwrites it. Merge the `ErrorDocument` lines into your existing rules instead.
+
+---
+
 ## File browser
 
 The installer places a file browser at the web root (`index.php`) so visiting `https://yourserver.com/` shows a navigable directory listing of all your scripts. Features:

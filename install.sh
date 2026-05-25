@@ -80,9 +80,13 @@ else
 fi
 
 # ── Deploy web root files from ##Extras ───────────────────────────────────────
+# .htaccess routes 404s site-wide to the themed 404.php; 404.php is the page.
+# If you already have a webroot .htaccess for another tool, the cp below will
+# overwrite it — merge manually after install if so.
 echo "[2/4] Copying file browser to web root..."
 EXTRAS="$DEST/##Extras"
-for f in index.php viewer.php globalVariables.php; do
+WEBROOT_FILES=(index.php viewer.php globalVariables.php .htaccess 404.php 403.php)
+for f in "${WEBROOT_FILES[@]}"; do
     if [[ -f "$EXTRAS/$f" ]]; then
         cp "$EXTRAS/$f" "$WEBROOT/$f"
         echo "      → $WEBROOT/$f"
@@ -93,7 +97,7 @@ echo "[3/4] Setting ownership to $WEB_USER..."
 chown -R "$WEB_USER":"$WEB_USER" "$DEST"
 # Chown the web root dir itself (not recursively) so PHP can rename the scripts folder inside it
 chown "$WEB_USER":"$WEB_USER" "$WEBROOT"
-for f in index.php viewer.php globalVariables.php; do
+for f in "${WEBROOT_FILES[@]}"; do
     [[ -f "$WEBROOT/$f" ]] && chown "$WEB_USER":"$WEB_USER" "$WEBROOT/$f"
 done
 
