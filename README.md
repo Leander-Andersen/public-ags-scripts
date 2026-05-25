@@ -129,6 +129,23 @@ The password hash is bcrypt'd before being written, so even if the file were to 
 
 ---
 
+## Custom 404 page
+
+The installer deploys a webroot-level `.htaccess` with `ErrorDocument 404 /404.php` and the matching `404.php` (OverPinku-themed, falling sakura, click-burst hearts, links back to the file browser). Any URL on the domain that doesn't resolve to a real file lands on the cute page instead of Apache's default.
+
+**Nginx equivalent** (add to your server block):
+
+```nginx
+error_page 404 /404.php;
+location = /404.php {
+    internal;
+}
+```
+
+If your webroot already has a `.htaccess` for another tool, the install / updater step overwrites it. Merge the `ErrorDocument 404 /404.php` line into your existing rules instead.
+
+---
+
 ## File browser
 
 The installer places a file browser at the web root (`index.php`) so visiting `https://yourserver.com/` shows a navigable directory listing of all your scripts. Features:

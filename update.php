@@ -480,11 +480,12 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     }
     echo '</ul>';
 
-    // 4. Copy ##Extras web-root files (index.php, viewer.php, globalVariables.php) to DOCUMENT_ROOT
-    //    install.sh places these files at the web root on first install; the updater must keep them in sync.
+    // 4. Copy ##Extras web-root files to DOCUMENT_ROOT.
+    //    install.sh places these at the web root on first install; the updater
+    //    keeps them in sync. .htaccess routes 404s to the themed 404.php below.
     $webroot = realpath($_SERVER['DOCUMENT_ROOT']);
     $extras  = $BASE . '/##Extras';
-    $webroot_files = ['index.php', 'viewer.php', 'globalVariables.php'];
+    $webroot_files = ['index.php', 'viewer.php', 'globalVariables.php', '.htaccess', '404.php'];
     $copy_results  = [];
     foreach ($webroot_files as $wf) {
         $src  = $extras . '/' . $wf;

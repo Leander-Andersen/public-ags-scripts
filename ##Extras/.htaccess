@@ -1,0 +1,10 @@
+# Webroot-level Apache rules.
+#
+# ErrorDocument routes any 404 below this directory (including nested
+# subdirectories) to /404.php — our cute OverPinku-themed page. The path
+# is absolute from docroot; do NOT include http(s):// or Apache treats
+# it as a redirect instead of an internal sub-request.
+#
+# Nginx users — see README for the equivalent error_page directive.
+
+ErrorDocument 404 /404.php
