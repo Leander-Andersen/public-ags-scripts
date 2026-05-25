@@ -6,6 +6,6 @@ There are currently no "supported" versions. Reports will be added to the main b
 
 ## Reporting a Vulnerability
 
-To report a vulnerability, please send an email to leander@isame12.xyz.  
+To report a vulnerability, please send an email to leander@isame12.no.  
 
 If a vulnerability is accepted, you will be added to the README as a thank you <3
