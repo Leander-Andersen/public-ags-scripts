@@ -9,3 +9,5 @@ setup.lock
 
 # Per-machine VS Code settings (launch configs, etc.) — local to each clone
 .vscode/
+# Packaged scripts contain embedded AES-256 SMTP credentials — never commit these
+*_pkg.ps1

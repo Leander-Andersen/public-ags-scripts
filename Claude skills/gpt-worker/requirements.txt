@@ -1,0 +1,8 @@
+mcp[cli]
+openai>=1.30.0
+python-dotenv
+pypdf
+python-docx
+requests
+html2text
+tiktoken
