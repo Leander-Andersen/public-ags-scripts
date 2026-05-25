@@ -1,27 +1,39 @@
-#forsikrer at scriptet køres som administrator, om ikke, så opnes ett nytt vindu som kjører scriptet som administrator
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+<#
+.SYNOPSIS
+    HExtract v2  -  Windows Autopilot hardware hash generator with optional
+    email delivery.  Run Invoke-PackageSmtp once to embed SMTP credentials,
+    then distribute the packaged script.  The hash CSV is emailed as an
+    attachment and the script self-deletes on successful send.
+#>
+
+# ---- Admin elevation --------------------------------------------------------
+if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Please run this script as an Administrator."
     $runAsAdmin = Read-Host "Do you want to run this script as an Administrator? (Y/N)"
-    
-    if ($runAsAdmin -eq "Y" -or $runAsAdmin -eq "y" -or $runAsAdmin -eq "Yes" -or $runAsAdmin -eq "yes") {
-        #starten en ny prosess som kjører scriptet som administrator
-        Start-Process powershell -Verb RunAs -ArgumentList ('-noprofile -noexit -file "{0}"' -f ($MyInvocation.MyCommand.Definition))    
+    if ($runAsAdmin -eq 'Y' -or $runAsAdmin -eq 'y' -or $runAsAdmin -eq 'Yes' -or $runAsAdmin -eq 'yes') {
+        Start-Process powershell -Verb RunAs -ArgumentList ('-ExecutionPolicy Bypass -NoProfile -NoExit -File "{0}"' -f ($MyInvocation.MyCommand.Definition))
     }
-    else {
-        exit
-    }
-    
-
+    exit
 }
-else {
-    Write-Warning "Running as Administrator"
-}
-
-
-#Gjør middlertidige endringer i execution policy for å kunne instalere et skript å kjøre dette scriptet
+Write-Warning "Running as Administrator"
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
 
-#definerer script fra miscrsoft som an fungsjon slik at du slipper å måtte godta å instalere scripter fra en "untrusted sourse" selv om den kommer fra miscrosoft (skalle emoji her)
+# -----------------------------------------------------------------------------
+#  EMBEDDED SMTP CONFIG  (managed by Invoke-PackageSmtp  -  do not edit manually)
+#  Password is AES-256 encrypted.  Key and ciphertext are both required to decrypt.
+# =SMTP-BEGIN=
+$Script:_SmtpServer = ''
+$Script:_SmtpPort   = 587
+$Script:_SmtpSSL    = $true
+$Script:_SmtpFrom   = ''
+$Script:_SmtpTo     = ''
+$Script:_SmtpUser   = ''
+$Script:_SmtpEPwd   = ''
+$Script:_SmtpKey    = ''
+# =SMTP-END=
+# -----------------------------------------------------------------------------
+
+# ---- Microsoft Get-WindowsAutopilotInfo (v3.9) ------------------------------
 function Get-WindowsAutopilotInfo {
     <#PSScriptInfo
 
@@ -33,21 +45,21 @@ function Get-WindowsAutopilotInfo {
 
 .COMPANYNAME Microsoft
 
-.COPYRIGHT 
+.COPYRIGHT
 
 .TAGS Windows AutoPilot
 
-.LICENSEURI 
+.LICENSEURI
 
-.PROJECTURI 
+.PROJECTURI
 
-.ICONURI 
+.ICONURI
 
-.EXTERNALMODULEDEPENDENCIES 
+.EXTERNALMODULEDEPENDENCIES
 
-.REQUIREDSCRIPTS 
+.REQUIREDSCRIPTS
 
-.EXTERNALSCRIPTDEPENDENCIES 
+.EXTERNALSCRIPTDEPENDENCIES
 
 .RELEASENOTES
 Version 1.0:  Original published version.
@@ -142,7 +154,7 @@ Get-CMCollectionMember -CollectionName "All Systems" | .\GetWindowsAutoPilotInfo
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
 	[Parameter(Mandatory=$False,ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$True,Position=0)][alias("DNSHostName","ComputerName","Computer")] [String[]] $Name = @("localhost"),
-	[Parameter(Mandatory=$False)] [String] $OutputFile = "", 
+	[Parameter(Mandatory=$False)] [String] $OutputFile = "",
 	[Parameter(Mandatory=$False)] [String] $GroupTag = "",
 	[Parameter(Mandatory=$False)] [String] $AssignedUser = "",
 	[Parameter(Mandatory=$False)] [Switch] $Append = $false,
@@ -155,7 +167,7 @@ param(
 	[Parameter(Mandatory=$False,ParameterSetName = 'Online')] [String] $AppSecret = "",
 	[Parameter(Mandatory=$False,ParameterSetName = 'Online')] [String] $AddToGroup = "",
 	[Parameter(Mandatory=$False,ParameterSetName = 'Online')] [String] $AssignedComputerName = "",
-	[Parameter(Mandatory=$False,ParameterSetName = 'Online')] [Switch] $Assign = $false, 
+	[Parameter(Mandatory=$False,ParameterSetName = 'Online')] [Switch] $Assign = $false,
 	[Parameter(Mandatory=$False,ParameterSetName = 'Online')] [Switch] $Reboot = $false
 )
 
@@ -173,7 +185,7 @@ Begin
 			Write-Host "Installing provider NuGet"
 			Find-PackageProvider -Name NuGet -ForceBootstrap -IncludeDependencies
 		}
-        
+
 		# Get WindowsAutopilotIntune module (and dependencies)
 		$module = Import-Module WindowsAutopilotIntune -MinimumVersion 5.4.0 -PassThru -ErrorAction Ignore
 		if (-not $module) {
@@ -181,7 +193,7 @@ Begin
 			Install-Module WindowsAutopilotIntune -Force
 		}
 		Import-Module WindowsAutopilotIntune -Scope Global
-		
+
         	# Get Graph Authentication module (and dependencies)
         	$module = Import-Module microsoft.graph.authentication -PassThru -ErrorAction Ignore
         	if (-not $module) {
@@ -224,7 +236,7 @@ Begin
 		if ($OutputFile -eq "")
 		{
 			$OutputFile = "$($env:TEMP)\autopilot.csv"
-		} 
+		}
 	}
 }
 
@@ -303,7 +315,7 @@ Process
 				"Windows Product ID" = $product
 				"Hardware Hash" = $hash
 			}
-			
+
 			if ($GroupTag -ne "")
 			{
 				Add-Member -InputObject $c -NotePropertyName "Group Tag" -NotePropertyValue $GroupTag
@@ -400,7 +412,7 @@ End
 			}
 		}
 		Write-Host "$successCount devices imported successfully.  Elapsed time to complete import: $importSeconds seconds"
-		
+
 		# Wait until the devices can be found in Intune (should sync automatically)
 		$syncStart = Get-Date
 		$processingCount = 1
@@ -415,7 +427,7 @@ End
 						$processingCount = $processingCount + 1
 					}
 					$autopilotDevices += $device
-				}	
+				}
 			}
 			$deviceCount = $autopilotDevices.Length
 			Write-Host "Waiting for $processingCount of $deviceCount to be synced"
@@ -426,7 +438,7 @@ End
 		$syncDuration = (Get-Date) - $syncStart
 		$syncSeconds = [Math]::Ceiling($syncDuration.TotalSeconds)
 		Write-Host "All devices synced.  Elapsed time to complete sync: $syncSeconds seconds"
-        
+
         # Add the device to the specified AAD group
 		if ($AddToGroup)
 		{
@@ -443,14 +455,14 @@ End
 					else {
 						Write-Error "Unable to find Azure AD device with ID $($_.azureActiveDirectoryDeviceId)"
 					}
-				}				
+				}
 			}
 			else {
 				Write-Error "Unable to find group $AddToGroup"
 			}
 		}
 
-		# Assign the computer name 
+		# Assign the computer name
 		if ($AssignedComputerName -ne "")
 		{
 			$autopilotDevices | ForEach-Object {
@@ -476,11 +488,11 @@ End
 				Write-Host "Waiting for $processingCount of $deviceCount to be assigned"
 				if ($processingCount -gt 0){
 					Start-Sleep 30
-				}	
+				}
 			}
 			$assignDuration = (Get-Date) - $assignStart
 			$assignSeconds = [Math]::Ceiling($assignDuration.TotalSeconds)
-			Write-Host "Profiles assigned to all devices.  Elapsed time to complete assignment: $assignSeconds seconds"	
+			Write-Host "Profiles assigned to all devices.  Elapsed time to complete assignment: $assignSeconds seconds"
 			if ($Reboot)
 			{
 				Restart-Computer -Force
@@ -493,14 +505,225 @@ End
 
 }
 
-#henter inn pc navn for å kunne lage en fil med HWID med det navnet
-$computerName = $env:COMPUTERNAME
+# -----------------------------------------------------------------------------
+#  SMTP  -- encrypted credential packaging and hash delivery
+# -----------------------------------------------------------------------------
 
-New-Item -Type Directory -Path "C:\HWID"
-Set-Location -Path "C:\HWID"
+function Invoke-PackageSmtp {
+    <#
+    .SYNOPSIS
+        Encrypts SMTP credentials with AES-256 and writes them directly into
+        this script file so clients never need to configure anything.
+        Run this once on your own machine, then distribute the packaged script.
+    #>
+    Write-Host "`n  -- Package SMTP Credentials into Script ----------------" -ForegroundColor Cyan
+    Write-Host   "  The password will be AES-256 encrypted and embedded in"
+    Write-Host   "  the script. Clients will never see or enter credentials.`n"
+    Write-Host   "  Leave recipient blank to ask on the client at send-time.`n"
+
+    $server = Read-Host "  SMTP server  (e.g. smtp.gmail.com)"
+    $port   = [int](Read-Host "  SMTP port    (e.g. 587)")
+    $ssl    = ((Read-Host "  Use SSL/TLS? [Y/n]").Trim().ToUpper() -ne 'N')
+    $from   = Read-Host "  From address"
+    $to     = (Read-Host "  Recipient address (leave blank to ask on client)").Trim()
+    $user   = Read-Host "  SMTP username"
+    $secPwd = Read-Host "  SMTP password" -AsSecureString
+
+    # Extract plain text from SecureString only long enough to encrypt it
+    $bstr   = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd)
+    $plain  = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+
+    # AES-256 encrypt
+    $aes        = [System.Security.Cryptography.Aes]::Create()
+    $aes.KeySize = 256
+    $aes.GenerateKey()
+    $aes.GenerateIV()
+    $enc        = $aes.CreateEncryptor()
+    $plainBytes = [System.Text.Encoding]::UTF8.GetBytes($plain)
+    $cipher     = $enc.TransformFinalBlock($plainBytes, 0, $plainBytes.Length)
+    $combined   = $aes.IV + $cipher    # IV prepended so we can extract it on decrypt
+    $ePwd       = [Convert]::ToBase64String($combined)
+    $key        = [Convert]::ToBase64String($aes.Key)
+    $plain      = $null
+
+    $sslStr   = if ($ssl) { '$true' } else { '$false' }
+    $newBlock = @"
+`$Script:_SmtpServer = '$server'
+`$Script:_SmtpPort   = $port
+`$Script:_SmtpSSL    = $sslStr
+`$Script:_SmtpFrom   = '$from'
+`$Script:_SmtpTo     = '$to'
+`$Script:_SmtpUser   = '$user'
+`$Script:_SmtpEPwd   = '$ePwd'
+`$Script:_SmtpKey    = '$key'
+"@
+
+    $srcPath  = $PSCommandPath
+    $srcDir   = Split-Path $srcPath -Parent
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($srcPath)
+    $pkgPath  = Join-Path $srcDir ($baseName + '_pkg.ps1')
+
+    $content     = Get-Content $srcPath -Raw
+    $pattern     = '(?s)(# =SMTP-BEGIN=\r?\n).*?(# =SMTP-END=)'
+    $replacement = "# =SMTP-BEGIN=`n$newBlock# =SMTP-END="
+    $updated     = [regex]::Replace($content, $pattern, $replacement)
+
+    if ($updated -eq $content) {
+        Write-Host "  ERROR: Could not locate the SMTP config block in the script." -ForegroundColor Red
+        return
+    }
+
+    Set-Content $pkgPath $updated -Encoding UTF8 -NoNewline:$false
+    Write-Host "`n  Packaged script written to:" -ForegroundColor Green
+    Write-Host "  $pkgPath" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Distribute '$($baseName)_pkg.ps1' to clients."
+    Write-Host "  The original '$baseName.ps1' is unchanged."
+    Write-Host "  On successful send the packaged script will delete itself."
+}
+
+function Send-HWHash {
+    <#
+    .SYNOPSIS
+        Emails the hardware hash CSV as an attachment.
+        Uses embedded AES-256 credentials when available; otherwise prompts
+        interactively.  Self-deletes the script after a successful send when
+        running with embedded credentials.
+    .PARAMETER CsvFile  Full path to the CSV file to attach.
+    #>
+    param([string]$CsvFile)
+
+    if (-not (Test-Path $CsvFile)) {
+        Write-Host "  Hash file not found: $CsvFile" -ForegroundColor Red
+        return
+    }
+
+    # -------------------------------------------------------------------------
+    # Resolve credentials: embedded AES-256 block or interactive prompt
+    # -------------------------------------------------------------------------
+    $smtpServer    = $null
+    $smtpPort      = 587
+    $smtpSSL       = $true
+    $smtpFrom      = $null
+    $smtpTo        = $null
+    $credential    = $null
+    $usingEmbedded = $false
+
+    if ($Script:_SmtpServer -ne '') {
+        try {
+            $key        = [Convert]::FromBase64String($Script:_SmtpKey)
+            $combined   = [Convert]::FromBase64String($Script:_SmtpEPwd)
+            $iv         = $combined[0..15]
+            $cipher     = $combined[16..($combined.Length - 1)]
+            $aes        = [System.Security.Cryptography.Aes]::Create()
+            $aes.Key    = $key
+            $aes.IV     = $iv
+            $plainBytes = $aes.CreateDecryptor().TransformFinalBlock($cipher, 0, $cipher.Length)
+            $plain      = [System.Text.Encoding]::UTF8.GetString($plainBytes)
+            $securePwd  = ConvertTo-SecureString $plain -AsPlainText -Force
+            $plain      = $null
+            $credential = New-Object System.Management.Automation.PSCredential($Script:_SmtpUser, $securePwd)
+            $smtpServer = $Script:_SmtpServer
+            $smtpPort   = $Script:_SmtpPort
+            $smtpSSL    = [bool]$Script:_SmtpSSL
+            $smtpFrom   = $Script:_SmtpFrom
+            $usingEmbedded = $true
+        } catch {
+            Write-Host "  Failed to decrypt embedded credentials: $_" -ForegroundColor Red
+            return
+        }
+
+        if ($Script:_SmtpTo -ne '') {
+            $smtpTo = $Script:_SmtpTo
+        } else {
+            $smtpTo = (Read-Host "  Enter recipient email address").Trim()
+            if (-not $smtpTo) {
+                Write-Host "  No recipient entered. Aborting." -ForegroundColor Yellow
+                return
+            }
+        }
+    } else {
+        # No embedded creds — ask interactively
+        Write-Host "`n  No embedded credentials found. Enter SMTP details now." -ForegroundColor Yellow
+        Write-Host   "  Tip: run [P] to embed credentials for future deployments.`n"
+        $smtpServer = Read-Host "  SMTP server  (e.g. smtp.gmail.com)"
+        $smtpPort   = [int](Read-Host "  SMTP port    (e.g. 587)")
+        $smtpSSL    = ((Read-Host "  Use SSL/TLS? [Y/n]").Trim().ToUpper() -ne 'N')
+        $smtpFrom   = Read-Host "  From address"
+        $smtpTo     = Read-Host "  Recipient address"
+        $smtpUser   = Read-Host "  SMTP username"
+        $secPwd     = Read-Host "  SMTP password" -AsSecureString
+        $credential = New-Object System.Management.Automation.PSCredential($smtpUser, $secPwd)
+    }
+
+    $subject = "Autopilot Hardware Hash - $env:COMPUTERNAME - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    $body    = "Autopilot hardware hash CSV attached from $env:COMPUTERNAME.`nGenerated: $(Get-Date)"
+
+    Write-Host "  Sending hash to $smtpTo via ${smtpServer}:${smtpPort}..." -ForegroundColor Cyan
+    try {
+        Send-MailMessage `
+            -From        $smtpFrom `
+            -To          $smtpTo `
+            -Subject     $subject `
+            -Body        $body `
+            -Attachments $CsvFile `
+            -SmtpServer  $smtpServer `
+            -Port        $smtpPort `
+            -Credential  $credential `
+            -UseSsl:$smtpSSL `
+            -ErrorAction Stop
+        Write-Host "  Hash sent successfully." -ForegroundColor Green
+
+        if ($usingEmbedded) {
+            # Self-delete the packaged script so credentials don't linger on the client
+            $self = $PSCommandPath
+            Start-Process powershell -ArgumentList "-NoProfile -Command `"Start-Sleep 2; Remove-Item -Force '$self'`""
+            Write-Host "  Script will self-delete now." -ForegroundColor DarkGray
+        }
+    } catch {
+        Write-Host "  Failed to send: $_" -ForegroundColor Red
+    }
+}
+
+# -----------------------------------------------------------------------------
+#  MAIN
+# -----------------------------------------------------------------------------
+
+$computerName = $env:COMPUTERNAME
+$outputDir    = 'C:\HWID'
+$outputFile   = Join-Path $outputDir "$computerName.csv"
+
+New-Item -Type Directory -Path $outputDir -Force | Out-Null
+Set-Location -Path $outputDir
 $env:Path += ";C:\Program Files\WindowsPowerShell\Scripts"
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Default
 
+Write-Host "`n  Gathering hardware hash for $computerName ..." -ForegroundColor Cyan
+Get-WindowsAutopilotInfo -OutputFile "$computerName.csv"
 
+Write-Host ""
+if (Test-Path $outputFile) {
+    Write-Host "  Hash saved to: $outputFile" -ForegroundColor Green
+} else {
+    Write-Host "  WARNING: Output file not found at expected path: $outputFile" -ForegroundColor Yellow
+}
 
-Get-WindowsAutopilotInfo -OutputFile $computerName".csv"
+# ---- Post-run: auto-send if a To address is pre-configured, else show menu --
+if ($Script:_SmtpServer -ne '' -and $Script:_SmtpTo -ne '') {
+    Send-HWHash -CsvFile $outputFile
+} else {
+    Write-Host ""
+    Write-Host "  [E]  Email hash file to recipient" -ForegroundColor Yellow
+    if ($Script:_SmtpServer -eq '') {
+        Write-Host "  [P]  Package SMTP credentials into this script" -ForegroundColor Yellow
+    }
+    Write-Host "  [Enter]  Exit"
+    Write-Host ""
+
+    $choice = (Read-Host "  Select").Trim().ToUpper()
+    switch ($choice) {
+        'E' { Send-HWHash -CsvFile $outputFile }
+        'P' { Invoke-PackageSmtp }
+    }
+}

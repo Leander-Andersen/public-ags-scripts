@@ -440,17 +440,28 @@ $title = htmlspecialchars(basename($requested));
         .markdown-body table {
             border-collapse: collapse;
             width: 100%;
+            background: var(--card-bg) !important;
         }
 
         .markdown-body th,
         .markdown-body td {
-            border: 1px solid var(--table-border);
+            border: 1px solid var(--table-border) !important;
             padding: 8px;
             text-align: left;
+            color: var(--text) !important;
+            background-color: transparent !important;
         }
 
         .markdown-body thead tr {
-            background: var(--thead-bg);
+            background: var(--thead-bg) !important;
+        }
+
+        .markdown-body tbody tr {
+            background: transparent !important;
+        }
+
+        .markdown-body tbody tr:nth-child(even) {
+            background: rgba(128, 128, 128, 0.05) !important;
         }
 
         /* ── Images ───────────────────────────────────────── */
