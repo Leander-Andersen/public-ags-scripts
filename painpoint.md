@@ -58,7 +58,7 @@ The `RESPONSE` env var was set but **never used** — the workflow used the unsa
 
 ## HIGH
 
-### H0 — Embedded SMTP credentials in SysPulse packaged builds are obfuscated, not encrypted
+### H0 — Embedded SMTP credentials in SysPulse packaged builds are obfuscated, not encrypted  ⚠️ ACCEPTED RISK
 
 **File:** [SysPulse/SysPulse.ps1:2466-2489](SysPulse/SysPulse.ps1#L2466-L2489), [SysPulse/SysPulse.ps1:2606-2624](SysPulse/SysPulse.ps1#L2606-L2624)
 
@@ -84,6 +84,8 @@ The decrypt path on lines 2609-2620 reads both from the same file. Anyone who ke
 3. **Per-client key with a short TTL** — same idea, but the embedded token has an expiry. Past that date, the pkg is inert, so a stale client copy doesn't keep working forever.
 
 Option 2 is the right destination. Option 1 is the right thing to do today regardless.
+
+**Decision (2026-05-25):** accepted as residual risk. The bounded recipient set (threat-model #3 — hand-delivered to known clients) makes this tolerable. Not deemed worth the engineering cost right now. Revisit if (a) the recipient set ever stops being bounded, or (b) the SMTP password is also used for something else and needs to be rotated frequently.
 
 ### H1 — Stored XSS in the root file browser  ✅ RESOLVED
 
@@ -317,14 +319,34 @@ These came up during the review and looked suspicious at first but didn't turn i
 
 ---
 
-## Suggested order of operations
+## Status board
 
-1. **C1** — patch `summary.yml` today. The fix is one-line: change `--body '${{ … }}'` to `--body "$RESPONSE"` and keep the env var. This is the only Critical issue that's already exploitable from the public internet (anyone who can open a GitHub issue).
-2. **H4** — rotate the `BRRRRR_…` API key now (it's in a public repo, so the secret is public). Then either delete the `telemmentryTemplate.*` files or rewrite them with prepared statements + an env-var secret.
-3. **H1 + H3** — escape filenames in the file browser and sanitise markdown output. Both are small, contained patches and they sit on the public-facing surface.
-4. **H5 + H6** — gate `setup.php` and `update.php`. Simplest reasonable answer: HTTP basic auth scoped to those two files in the webserver config. Slightly nicer: a one-time token stored in `.setup-config.json` that has to be POSTed.
-5. **H0 + M5** — SysPulse. Step 1 (rename / re-comment) costs nothing and removes the misleading "AES-256 encrypted" claim from the packaging tooling. Plan step 2 (write-only relay endpoint) for a later sprint. Fix the `$target` interpolation in the self-delete path while you're there.
-6. **H2** — one-line fix to the docroot prefix check.
-7. Everything else can be scheduled.
+| ID | Title | Status |
+|---|---|---|
+| C1 | Workflow shell injection (summary.yml) | ✅ resolved |
+| H0 | SysPulse embedded SMTP creds | ⚠️ accepted risk |
+| H1 | File-browser filename XSS | ✅ resolved |
+| H2 | viewer.php prefix-match check | ✅ resolved |
+| H3 | viewer.php unsanitised markdown | ✅ resolved |
+| H4 | Telemetry template SQLi + key | ✅ resolved (deleted) |
+| H5 | No auth on `setup.php` / `update.php` | open — needs operator decision |
+| H6 | Updater deploys arbitrary origin branches | open — paired with H5 |
+| M1 | `php-errors.log` in webroot | open |
+| M2 | Missing SRI on CDN scripts | open |
+| M3 | Outdated `countryCodes/` libs | open |
+| M4 | Webserver user owns docroot | open |
+| M5 | SysPulse self-delete + `$target` interpolation | open |
+| M6 | Session cookies missing flags | open |
+| L1–L6 | Hygiene items | open |
+
+## Suggested order of operations (what's left)
+
+1. **H5 + H6** — paired auth gate on `setup.php`/`update.php`. Needs an operator decision on the method (HTTP basic auth in the webserver config vs. a token in `.setup-config.json`).
+2. **M2 + M3** — batch the CDN hygiene: SRI hashes on all third-party scripts (including the DOMPurify just added in H3), and bump `countryCodes/` to current Bootstrap/jQuery/DataTables.
+3. **M1** — move `php-errors.log` out of the served directory.
+4. **M6** — session cookie attributes on `setup.php` / `update.php`.
+5. **M5** — quote `$target` properly in the SysPulse self-delete path. The self-delete behaviour itself is intentional (see [[syspulse-distribution-model]]) and kept.
+6. **L3** — pin `actions/labeler` to a commit SHA.
+7. Everything else (L1, L2, L4, L5, L6, M4) is hygiene — schedule whenever.
 
 Reports go to leander@isame12.xyz per [SECURITY.md](SECURITY.md). If any of the above is already known and tracked, point me at the issue and I'll cross-reference.
