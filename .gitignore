@@ -6,3 +6,6 @@ setup.lock
 
 # Per-machine Claude Code settings (permissions, etc.) — local to each clone
 .claude/
+
+# Per-machine VS Code settings (launch configs, etc.) — local to each clone
+.vscode/
