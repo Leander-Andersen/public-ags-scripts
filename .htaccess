@@ -1,0 +1,27 @@
+# Deny HTTP access to files that should never be reachable as URLs.
+#
+# .setup-config.json — holds the bcrypt'd admin password hash; even a hash
+#                      leak is bad form, deny outright.
+# setup.lock        — single-use gate marker, no value in exposing.
+# .htaccess         — never serve our own access rules.
+# *.bak / *.log     — backup files and PHP error logs that may contain paths,
+#                     stack traces, or partial source.
+#
+# Apache 2.4+ syntax — drop the Require lines on Apache 2.2 (EOL 2017).
+# On Nginx, add the equivalent to the server block — see README.md for snippet.
+
+<Files ".setup-config.json">
+    Require all denied
+</Files>
+<Files "setup.lock">
+    Require all denied
+</Files>
+<Files ".htaccess">
+    Require all denied
+</Files>
+<FilesMatch "\.bak$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.log$">
+    Require all denied
+</FilesMatch>

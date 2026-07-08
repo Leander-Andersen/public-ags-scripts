@@ -69,18 +69,24 @@ echo ""
 # ── Clone or update repo ──────────────────────────────────────────────────────
 if [[ -d "$DEST/.git" ]]; then
     echo "[1/4] Repo already exists — pulling latest..."
-    git config --global --add safe.directory "$DEST" 2>/dev/null || true
-    git -C "$DEST" fetch origin
-    git -C "$DEST" reset --hard "origin/$BRANCH"
+    # Scope safe.directory to these git invocations only (-c flag) rather
+    # than appending to root's global git config on every install. Avoids
+    # accumulating one entry per install path in /root/.gitconfig.
+    git -c safe.directory="$DEST" -C "$DEST" fetch origin
+    git -c safe.directory="$DEST" -C "$DEST" reset --hard "origin/$BRANCH"
 else
     echo "[1/4] Cloning repository..."
     git clone --branch "$BRANCH" "$REPO_URL" "$DEST"
 fi
 
 # ── Deploy web root files from ##Extras ───────────────────────────────────────
+# .htaccess routes 404s site-wide to the themed 404.php; 404.php is the page.
+# If you already have a webroot .htaccess for another tool, the cp below will
+# overwrite it — merge manually after install if so.
 echo "[2/4] Copying file browser to web root..."
 EXTRAS="$DEST/##Extras"
-for f in index.php viewer.php globalVariables.php; do
+WEBROOT_FILES=(index.php viewer.php globalVariables.php .htaccess 404.php 403.php)
+for f in "${WEBROOT_FILES[@]}"; do
     if [[ -f "$EXTRAS/$f" ]]; then
         cp "$EXTRAS/$f" "$WEBROOT/$f"
         echo "      → $WEBROOT/$f"
@@ -91,7 +97,7 @@ echo "[3/4] Setting ownership to $WEB_USER..."
 chown -R "$WEB_USER":"$WEB_USER" "$DEST"
 # Chown the web root dir itself (not recursively) so PHP can rename the scripts folder inside it
 chown "$WEB_USER":"$WEB_USER" "$WEBROOT"
-for f in index.php viewer.php globalVariables.php; do
+for f in "${WEBROOT_FILES[@]}"; do
     [[ -f "$WEBROOT/$f" ]] && chown "$WEB_USER":"$WEB_USER" "$WEBROOT/$f"
 done
 

@@ -17,8 +17,12 @@ if ($fileParam === '') {
 }
 
 // normalize and prevent traversal
+// Append DIRECTORY_SEPARATOR to $docroot before the prefix check so a sibling
+// directory whose name starts with the docroot (e.g. /var/www/html-private/
+// when docroot is /var/www/html) can't slip past the containment check.
 $requested = realpath($docroot . DIRECTORY_SEPARATOR . $fileParam);
-if ($requested === false || strpos($requested, $docroot) !== 0) {
+$docrootWithSep = rtrim($docroot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+if ($requested === false || strpos($requested . DIRECTORY_SEPARATOR, $docrootWithSep) !== 0) {
     http_response_code(403);
     echo "Access denied.";
     exit;
@@ -60,22 +64,52 @@ $title = htmlspecialchars(basename($requested));
     <title><?php echo $title; ?></title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e91e8c' d='M16 28C16 28 3 18 3 10.5C3 6.5 6.5 3.5 10.5 3.5C13 3.5 15.2 5 16 7C16.8 5 19 3.5 21.5 3.5C25.5 3.5 29 6.5 29 10.5C29 18 16 28 16 28Z'/%3E%3Ccircle cx='11' cy='10' r='2' fill='white' opacity='0.55'/%3E%3C/svg%3E">
 
-    <!-- Github markdown CSS (light used as baseline; we override heavily for dark mode) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css">
+    <!-- All CDN scripts/stylesheets are pinned to a specific version and
+         protected with Subresource Integrity hashes (sha512). A CDN
+         compromise or DNS hijack that returns a tampered file will fail
+         the integrity check and the browser will refuse to load it.
+         Google Fonts is exempt — it returns different CSS per UA, so SRI
+         is impractical there; accepted as a known gap. -->
 
-    <!-- Fonts / icons -->
+    <!-- Github markdown CSS (light used as baseline; we override heavily for dark mode) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css"
+          integrity="sha512-Mo2QuokS9Y0JOuzVLUh3o9A07RqSXcpc2KC9LXxOwfaBgPt8ZHRiDfGQ2+tZw7xIno+ViWipTNLg1StC6TmwMA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <!-- Fonts / icons (no SRI — Google Fonts CSS varies per user agent) -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
-    <!-- highlight.js theme (swapped by JS for light/overpinku) -->
-    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <!-- highlight.js theme (swapped by JS for light/overpinku — the runtime swap
+         loses SRI, see the .href assignment below; accepted gap on theme swap) -->
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css"
+          integrity="sha512-Jk4AqjWsdSzSWCSuQTfYRIF84Rq/eV0G2+tu07byYwHcbTGfdmLrHjUSwvzp5HvbiqK4ibmNwdcG49Y5RGYPTg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer">
 
-    <!-- Apply saved theme before first paint -->
+    <!-- marked: pinned to a specific version (previously "marked@latest" via
+         jsdelivr, which would silently float to whatever was current) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"
+            integrity="sha512-oSA0PdOBsyP4Cv5rIHOWhOr+H0ZPOE/L8UKaX33DjBFD+TrWOZZfewjg85Z7WhNPkQrHeTKOYSio/XM6FBPhWA=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"
+            integrity="sha512-rdhY3cbXURo13l/WU9VlaRyaIYeJ/KBakckXIvJNAQde8DgpOmE+eZf7ha4vdqVjTtwQt69bD2wH2LXob/LB7Q=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- DOMPurify sanitises the HTML that marked.parse() produces, so a
+         hostile or careless .md file can't inject <script>, onerror=, etc. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"
+            integrity="sha512-H+rglffZ6f5gF7UJgvH4Naa+fGCgjrHKMgoFOGmcPTRwR6oILo5R+gtzNrpDp7iMV3udbymBVjkeZGNz1Em4rQ=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Apply saved theme before first paint. First visit picks the
+         theme matching the OS preference (light/dark); OverPinku is
+         opt-in only. -->
     <script>
         (function () {
-            var t = localStorage.getItem('theme') || 'dark';
+            var t = localStorage.getItem('theme');
+            if (!t) {
+                t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+                    ? 'light' : 'dark';
+            }
             document.documentElement.dataset.theme = t;
             if (t !== 'dark') {
                 var l = document.getElementById('hljs-theme');
@@ -190,9 +224,23 @@ $title = htmlspecialchars(basename($requested));
 
         /* ── Page container ───────────────────────────────── */
         .container {
-            max-width: 980px;
+            max-width: 1240px;
             margin: 0 auto;
             padding: 20px;
+        }
+
+        /* ── Reading layout: content + sticky TOC on the right ──
+           Single column on narrow screens (TOC collapses to a
+           full-width nav at the top via CSS). */
+        .reading-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px;
+            gap: 28px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .reading-layout { grid-template-columns: 1fr; }
+            .toc { order: -1; position: static !important; max-height: 320px; overflow-y: auto; }
         }
 
         /* ── Markdown card ────────────────────────────────── */
@@ -202,6 +250,125 @@ $title = htmlspecialchars(basename($requested));
             border-radius: 10px;
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
             color: var(--text);
+            min-width: 0; /* let it shrink inside the grid */
+        }
+
+        /* ── Table of contents ─────────────────────────────── */
+        .toc {
+            position: sticky;
+            top: 16px;
+            background: var(--card-bg);
+            border: 1px solid rgba(128,128,128,0.18);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 0.85rem;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .toc-title {
+            font-weight: 500;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+        .toc-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .toc-list li { margin: 2px 0; }
+        .toc-list a {
+            color: var(--muted);
+            text-decoration: none;
+            display: block;
+            padding: 3px 6px;
+            border-radius: 4px;
+            border-left: 2px solid transparent;
+            transition: color 0.15s, background 0.15s, border-color 0.15s;
+            line-height: 1.4;
+        }
+        .toc-list a:hover {
+            color: var(--text);
+            background: rgba(128,128,128,0.08);
+            text-decoration: none;
+        }
+        .toc-list a.toc-active {
+            color: var(--text);
+            border-left-color: var(--accent);
+            background: rgba(128,128,128,0.08);
+        }
+        .toc-list .toc-h2 { padding-left: 18px; }
+        .toc-list .toc-h3 { padding-left: 30px; font-size: 0.95em; }
+        [data-theme="overpinku"] .toc-list a.toc-active {
+            border-left-color: #e91e8c;
+            background: rgba(255, 20, 147, 0.08);
+        }
+
+        /* ── Heading anchor links ──────────────────────────── */
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            position: relative;
+            scroll-margin-top: 16px; /* room above the heading when anchored */
+        }
+        .markdown-body .heading-anchor {
+            position: absolute;
+            left: -1.4em;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            text-decoration: none;
+            color: var(--muted);
+            font-weight: 300;
+            transition: opacity 0.15s, color 0.15s;
+            padding: 0 0.3em;
+        }
+        .markdown-body h1:hover .heading-anchor,
+        .markdown-body h2:hover .heading-anchor,
+        .markdown-body h3:hover .heading-anchor,
+        .markdown-body h4:hover .heading-anchor,
+        .markdown-body h5:hover .heading-anchor,
+        .markdown-body h6:hover .heading-anchor,
+        .markdown-body .heading-anchor:focus { opacity: 1; }
+        .markdown-body .heading-anchor:hover { color: var(--accent); }
+        @media (max-width: 600px) {
+            .markdown-body .heading-anchor { display: none; }
+        }
+
+        /* ── Copy toast ────────────────────────────────────── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            padding: 10px 18px;
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid rgba(128,128,128,0.25);
+            border-radius: 999px;
+            font-size: 0.88rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100000;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
+        }
+        .toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        [data-theme="overpinku"] .toast {
+            background: #fff8fa;
+            border-color: rgba(255, 20, 147, 0.35);
+            color: #5c1a3a;
+            box-shadow: 0 8px 24px rgba(233, 30, 140, 0.25);
         }
 
         /* ── Text / links inside markdown ─────────────────── */
@@ -269,21 +436,84 @@ $title = htmlspecialchars(basename($requested));
             font-size: 0.95em;
         }
 
+        /* ── OverPinku: override highlight.js tokens ────────
+           atom-one-light's default token colours (faint yellows /
+           pale greys) wash out completely on the OverPinku pink
+           card background. Override the common token classes with
+           a coordinated dark-on-pink palette so paths, strings,
+           keywords, and comments stay readable. */
+        [data-theme="overpinku"] .hljs,
+        [data-theme="overpinku"] pre code {
+            background: var(--code-bg) !important;
+            color: #5c1a3a !important;
+        }
+        [data-theme="overpinku"] .hljs-keyword,
+        [data-theme="overpinku"] .hljs-built_in,
+        [data-theme="overpinku"] .hljs-selector-tag,
+        [data-theme="overpinku"] .hljs-section,
+        [data-theme="overpinku"] .hljs-link {
+            color: #c2185b !important;
+            font-weight: 500;
+        }
+        [data-theme="overpinku"] .hljs-string,
+        [data-theme="overpinku"] .hljs-attr,
+        [data-theme="overpinku"] .hljs-template-tag,
+        [data-theme="overpinku"] .hljs-template-variable,
+        [data-theme="overpinku"] .hljs-type,
+        [data-theme="overpinku"] .hljs-symbol,
+        [data-theme="overpinku"] .hljs-bullet,
+        [data-theme="overpinku"] .hljs-addition,
+        [data-theme="overpinku"] .hljs-variable {
+            color: #7b1e3a !important;
+        }
+        [data-theme="overpinku"] .hljs-title,
+        [data-theme="overpinku"] .hljs-title.class_,
+        [data-theme="overpinku"] .hljs-title.function_,
+        [data-theme="overpinku"] .hljs-function .hljs-title,
+        [data-theme="overpinku"] .hljs-name {
+            color: #e91e8c !important;
+        }
+        [data-theme="overpinku"] .hljs-number,
+        [data-theme="overpinku"] .hljs-literal,
+        [data-theme="overpinku"] .hljs-regexp,
+        [data-theme="overpinku"] .hljs-meta {
+            color: #9c27b0 !important;
+        }
+        [data-theme="overpinku"] .hljs-comment,
+        [data-theme="overpinku"] .hljs-quote,
+        [data-theme="overpinku"] .hljs-deletion {
+            color: #a14a6a !important;
+            font-style: italic;
+        }
+        [data-theme="overpinku"] .hljs-emphasis  { font-style: italic; }
+        [data-theme="overpinku"] .hljs-strong    { font-weight: 700; }
+
         /* ── Tables ───────────────────────────────────────── */
         .markdown-body table {
             border-collapse: collapse;
             width: 100%;
+            background: var(--card-bg) !important;
         }
 
         .markdown-body th,
         .markdown-body td {
-            border: 1px solid var(--table-border);
+            border: 1px solid var(--table-border) !important;
             padding: 8px;
             text-align: left;
+            color: var(--text) !important;
+            background-color: transparent !important;
         }
 
         .markdown-body thead tr {
-            background: var(--thead-bg);
+            background: var(--thead-bg) !important;
+        }
+
+        .markdown-body tbody tr {
+            background: transparent !important;
+        }
+
+        .markdown-body tbody tr:nth-child(even) {
+            background: rgba(128, 128, 128, 0.05) !important;
         }
 
         /* ── Images ───────────────────────────────────────── */
@@ -451,8 +681,20 @@ $title = htmlspecialchars(basename($requested));
 
         <h1 class="file-title"><?php echo $title; ?></h1>
 
-        <article id="content" class="markdown-body">Loading…</article>
+        <div class="reading-layout">
+            <article id="content" class="markdown-body">Loading…</article>
+            <!-- TOC is populated by JS after marked.parse(); hidden when
+                 the document has fewer than 3 headings. -->
+            <aside id="toc" class="toc" aria-label="Table of contents" hidden>
+                <div class="toc-title">On this page</div>
+                <ol class="toc-list"></ol>
+            </aside>
+        </div>
     </div>
+
+    <!-- Live region for the "Copied ♡" toast — single reusable element,
+         positioned and styled by CSS, content + visibility driven by JS. -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <a class="gh-link" href="https://github.com/Leander-Andersen/public-ags-scripts/issues/new/choose"
        target="_blank" rel="noopener" aria-label="Report bug or request feature">
@@ -487,8 +729,29 @@ $title = htmlspecialchars(basename($requested));
                 applyTheme(NEXT[document.documentElement.dataset.theme] || 'light', true);
             };
 
-            var saved = localStorage.getItem('theme') || 'dark';
+            // First visit: match OS preference (skip overpinku — opt-in only).
+            var saved = localStorage.getItem('theme');
+            if (!saved) {
+                saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+                    ? 'light' : 'dark';
+            }
             applyTheme(saved, false);
+
+            // ── Toast helper ──────────────────────────────────
+            // Single shared element, fades in then out. Calling show()
+            // while a toast is visible resets the timeout — useful for
+            // rapid-fire copy clicks.
+            var toastEl = document.getElementById('toast');
+            var toastTimer = null;
+            function showToast(message) {
+                if (!toastEl) return;
+                toastEl.textContent = message;
+                toastEl.classList.add('visible');
+                if (toastTimer) clearTimeout(toastTimer);
+                toastTimer = setTimeout(function () {
+                    toastEl.classList.remove('visible');
+                }, 1600);
+            }
 
             // ── OverPinku: hearts on click ─────────────────────
             var _ph = ['♥', '♥', '♥', '♡', '❤'];
@@ -551,7 +814,13 @@ $title = htmlspecialchars(basename($requested));
             });
 
             try {
-                target.innerHTML = marked.parse(md);
+                // marked.parse() will happily emit <script> and inline-event
+                // handlers if the source markdown contains raw HTML. Run the
+                // output through DOMPurify before injecting it into the DOM.
+                var rendered = marked.parse(md);
+                target.innerHTML = (typeof DOMPurify !== 'undefined')
+                    ? DOMPurify.sanitize(rendered)
+                    : rendered;
             } catch (err) {
                 target.textContent = 'Error rendering markdown.';
                 console.error(err);
@@ -561,6 +830,80 @@ $title = htmlspecialchars(basename($requested));
             document.querySelectorAll('pre code').forEach((el) => {
                 try { hljs.highlightElement(el); } catch (e) {}
             });
+
+            // ── Heading anchors + table of contents ────────────
+            // Walk h1-h3 inside the rendered markdown, slug-ify the text
+            // into an id, and prepend a "#" link visible on hover so the
+            // section is permalink-able. Then build the TOC sidebar from
+            // the same set of headings.
+            function slugify(text) {
+                return text
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-|-$/g, '');
+            }
+
+            var seenSlugs = Object.create(null);
+            function uniqueSlug(text) {
+                var base = slugify(text) || 'section';
+                var slug = base, i = 2;
+                while (seenSlugs[slug]) { slug = base + '-' + i++; }
+                seenSlugs[slug] = true;
+                return slug;
+            }
+
+            var headings = target.querySelectorAll('h1, h2, h3');
+            headings.forEach(function (h) {
+                if (!h.id) h.id = uniqueSlug(h.textContent || '');
+                var a = document.createElement('a');
+                a.className = 'heading-anchor';
+                a.href = '#' + h.id;
+                a.setAttribute('aria-label', 'Anchor link to ' + (h.textContent || 'section'));
+                a.textContent = '#';
+                h.insertBefore(a, h.firstChild);
+            });
+
+            // Build TOC only when the document has enough headings to
+            // justify one — for tiny READMEs it's just clutter.
+            var toc = document.getElementById('toc');
+            if (toc && headings.length >= 3) {
+                var tocList = toc.querySelector('.toc-list');
+                headings.forEach(function (h) {
+                    var li = document.createElement('li');
+                    var link = document.createElement('a');
+                    link.href = '#' + h.id;
+                    // Use textContent and strip the leading "#" we just added
+                    link.textContent = (h.textContent || '').replace(/^#/, '').trim();
+                    link.className = 'toc-' + h.tagName.toLowerCase();
+                    link.dataset.headingId = h.id;
+                    li.appendChild(link);
+                    tocList.appendChild(li);
+                });
+                toc.hidden = false;
+
+                // Highlight the section the reader is currently in by
+                // observing which heading is closest to the top of the
+                // viewport. Updates the matching TOC link's class.
+                if ('IntersectionObserver' in window) {
+                    var tocLinks = toc.querySelectorAll('a');
+                    var byId = {};
+                    tocLinks.forEach(function (l) { byId[l.dataset.headingId] = l; });
+                    var io = new IntersectionObserver(function (entries) {
+                        entries.forEach(function (entry) {
+                            var link = byId[entry.target.id];
+                            if (!link) return;
+                            if (entry.isIntersecting) {
+                                tocLinks.forEach(function (l) { l.classList.remove('toc-active'); });
+                                link.classList.add('toc-active');
+                            }
+                        });
+                    }, { rootMargin: '-10% 0px -75% 0px', threshold: 0 });
+                    headings.forEach(function (h) { io.observe(h); });
+                }
+            }
 
             // ── Copy buttons ──────────────────────────────────
             function makeCopyButtons() {
@@ -582,6 +925,7 @@ $title = htmlspecialchars(basename($requested));
                             pre.classList.add('copied');
                             btn.querySelector('.label').textContent = 'Copied';
                             btn.querySelector('.tick').style.display = 'inline';
+                            showToast('Copied to clipboard ♡');
                             setTimeout(() => {
                                 pre.classList.remove('copied');
                                 btn.querySelector('.label').textContent = 'Copy';
@@ -598,12 +942,14 @@ $title = htmlspecialchars(basename($requested));
                                 sel.removeAllRanges();
                                 pre.classList.add('copied');
                                 btn.querySelector('.label').textContent = 'Copied';
+                                showToast('Copied to clipboard ♡');
                                 setTimeout(() => {
                                     pre.classList.remove('copied');
                                     btn.querySelector('.label').textContent = 'Copy';
                                 }, 1200);
                             } catch (e2) {
                                 console.error('Copy failed', e2);
+                                showToast('Copy failed — select the text manually');
                             }
                         }
                     });

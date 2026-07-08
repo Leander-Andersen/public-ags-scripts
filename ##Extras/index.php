@@ -32,18 +32,56 @@ if ($curReal !== $docroot) {
     $breadcrumb_html = $crumb;
 }
 
+// Map a file extension to a Material Symbols icon name. Keeps the listing
+// scannable — at a glance you can tell .ps1 from .md from .php.
+// Group keys collapse the long tail (ps1/psm1/psd1 share an icon, etc.).
+function file_icon_for_ext(string $ext): string {
+    static $map = [
+        'ps1'  => 'bolt',           'psm1' => 'bolt',           'psd1' => 'bolt',
+        'sh'   => 'terminal',       'bash' => 'terminal',       'zsh'  => 'terminal',
+        'bat'  => 'keyboard',       'cmd'  => 'keyboard',
+        'php'  => 'code',
+        'js'   => 'code',           'ts'   => 'code',
+        'py'   => 'code',
+        'html' => 'html',           'htm'  => 'html',
+        'css'  => 'palette',        'scss' => 'palette',
+        'md'   => 'article',        'markdown' => 'article',
+        'txt'  => 'text_snippet',   'log'  => 'text_snippet',
+        'json' => 'data_object',    'yml'  => 'data_object',    'yaml' => 'data_object',
+        'xml'  => 'data_object',    'toml' => 'data_object',
+        'csv'  => 'table_view',
+        'zip'  => 'folder_zip',     'tar'  => 'folder_zip',     'gz'   => 'folder_zip',
+        'exe'  => 'smart_button',   'msi'  => 'smart_button',
+        'pdf'  => 'picture_as_pdf',
+        'png'  => 'image',          'jpg'  => 'image',          'jpeg' => 'image',
+        'gif'  => 'image',          'svg'  => 'image',          'webp' => 'image',
+    ];
+    return $map[$ext] ?? 'draft';
+}
+
 // Build file/folder list
+// All file/folder names and URL paths are escaped before being echoed into
+// HTML attributes or text — a filename like `<img src=x onerror=alert(1)>.txt`
+// would otherwise execute as JavaScript when the listing is rendered.
+// Each <li> carries data-name/mtime/size/type so client-side sort + filter
+// can read them without re-parsing the DOM.
 $items_html = '';
 foreach ($scanned_directory as $file) {
+    $fileText = htmlspecialchars($file, ENT_QUOTES, 'UTF-8');
+    $nameAttr = htmlspecialchars(strtolower($file), ENT_QUOTES, 'UTF-8');
+
     if (is_dir($file)) {
-        $items_html .= '<li>'
+        $hrefDir = rawurlencode($file) . '/';
+        $dirMtime = filemtime($file);
+        $items_html .= '<li data-type="folder" data-name="' . $nameAttr . '" data-mtime="' . $dirMtime . '" data-size="0">'
             . '<span class="material-symbols-outlined folderIcon">folder</span>'
-            . '<a href="' . $file . '/">' . $file . '/</a>'
+            . '<a href="' . htmlspecialchars($hrefDir, ENT_QUOTES, 'UTF-8') . '">' . $fileText . '/</a>'
             . '</li>';
     } else {
         $filesize = filesize($file);
         $mtime    = filemtime($file);
         $ext      = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $icon     = file_icon_for_ext($ext);
 
         $fullPath = realpath($directory . DIRECTORY_SEPARATOR . $file);
         $relPath  = ltrim(str_replace($docroot, '', $fullPath), '/');
@@ -51,19 +89,22 @@ foreach ($scanned_directory as $file) {
         if (in_array($ext, ['md', 'markdown'])) {
             $href = '/viewer.php?f=' . rawurlencode($relPath);
         } else {
-            $href = '/' . $relPath;
+            // Percent-encode each path segment but keep the slashes intact
+            // so the link still works on disk paths.
+            $encodedSegments = array_map('rawurlencode', explode('/', $relPath));
+            $href = '/' . implode('/', $encodedSegments);
         }
 
         $fullUrl = $scheme . '://' . $host . $href;
 
-        $items_html .= '<li>'
-            . '<span class="material-symbols-outlined fileIcon">draft</span>'
-            . '<a href="' . $href . '">' . $file . '</a>'
+        $items_html .= '<li data-type="file" data-name="' . $nameAttr . '" data-mtime="' . $mtime . '" data-size="' . $filesize . '" data-ext="' . htmlspecialchars($ext, ENT_QUOTES, 'UTF-8') . '">'
+            . '<span class="material-symbols-outlined fileIcon">' . htmlspecialchars($icon, ENT_QUOTES, 'UTF-8') . '</span>'
+            . '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '">' . $fileText . '</a>'
             . '<span class="file-meta">'
             .   '<span class="file-mtime">' . date('d.m.Y', $mtime) . '</span>'
             .   '<span class="file-size">' . formatSizeUnits($filesize) . '</span>'
             . '</span>'
-            . '<button class="copy-btn" data-url="' . htmlspecialchars($fullUrl) . '" title="Copy URL" aria-label="Copy URL">'
+            . '<button class="copy-btn" data-url="' . htmlspecialchars($fullUrl, ENT_QUOTES, 'UTF-8') . '" title="Copy URL" aria-label="Copy URL">'
             .   '<span class="material-symbols-outlined">content_copy</span>'
             . '</button>'
             . '</li>';
@@ -167,7 +208,84 @@ function formatSizeUnits($bytes)
         .page-title {
             font-weight: 400;
             font-size: 1.4rem;
+            margin: 0 0 4px;
+        }
+
+        .page-subtitle {
+            font-weight: 300;
+            font-size: 0.92rem;
+            color: var(--muted);
             margin: 0 0 16px;
+        }
+
+        .subtitle-heart {
+            color: #e91e8c;
+            display: inline-block;
+        }
+        [data-theme="overpinku"] .subtitle-heart {
+            animation: heart-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes heart-pulse {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.2); }
+        }
+
+        /* ── Toolbar: filter + sort row ──────────────────── */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 16px;
+            margin-bottom: 14px;
+        }
+        .toolbar .filter-box { margin-bottom: 0; flex: 1 1 240px; }
+
+        .sort-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .sort-label {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-right: 2px;
+        }
+        .sort-btn {
+            background: rgba(128,128,128,0.08);
+            border: 1px solid rgba(128,128,128,0.18);
+            border-radius: 6px;
+            color: var(--muted);
+            font-family: inherit;
+            font-weight: 300;
+            font-size: 0.82rem;
+            padding: 4px 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .sort-btn:hover {
+            background: rgba(128,128,128,0.16);
+            color: var(--text);
+        }
+        .sort-btn[aria-pressed="true"] {
+            background: rgba(233, 30, 140, 0.12);
+            border-color: rgba(233, 30, 140, 0.4);
+            color: var(--text);
+        }
+        .sort-btn .arrow {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            display: none;
+        }
+        .sort-btn[aria-pressed="true"] .arrow { display: inline; }
+
+        [data-theme="overpinku"] .sort-btn[aria-pressed="true"] {
+            background: rgba(255, 20, 147, 0.18);
+            border-color: rgba(255, 20, 147, 0.5);
+            color: #5c1a3a;
         }
 
         /* ── Back link ──────────────────────────────────── */
@@ -387,6 +505,49 @@ function formatSizeUnits($bytes)
             color: #5c1a3a;
         }
 
+        /* ── Admin (updater) link ─────────────────────────── */
+        /* Same look as .gh-link / .theme-toggle, slotted below them in the
+           top-right stack. Icon-only — title attribute carries the label
+           so hovering still tells you what it is. */
+        .admin-link {
+            position: fixed;
+            top: 96px;
+            right: 16px;
+            background: rgba(128, 128, 128, 0.15);
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.85rem;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+            text-decoration: none;
+            transition: background-color 0.15s, color 0.15s, transform 0.2s;
+        }
+        .admin-link:hover {
+            background: rgba(128, 128, 128, 0.25);
+            text-decoration: none;
+            color: var(--muted);
+        }
+        .admin-link:hover .material-symbols-outlined {
+            transform: rotate(40deg);
+        }
+        .admin-link .material-symbols-outlined {
+            transition: transform 0.3s ease;
+        }
+        [data-theme="overpinku"] .admin-link {
+            background: rgba(255, 20, 147, 0.12);
+            border-color: rgba(255, 20, 147, 0.3);
+            color: #5c1a3a;
+        }
+        [data-theme="overpinku"] .admin-link:hover {
+            background: rgba(255, 20, 147, 0.22);
+            color: #5c1a3a;
+        }
+
         [data-theme="overpinku"] .theme-toggle {
             background: rgba(255, 20, 147, 0.12);
             border-color: rgba(255, 20, 147, 0.3);
@@ -457,10 +618,17 @@ function formatSizeUnits($bytes)
         }
     </style>
 
-    <!-- Apply saved theme before first paint to prevent flash -->
+    <!-- Apply saved theme before first paint to prevent flash.
+         If the visitor has never set a theme here, default to whatever
+         their OS prefers (light/dark) instead of forcing dark. OverPinku
+         stays opt-in via the Konami code — never auto-applied. -->
     <script>
         (function () {
-            var t = localStorage.getItem('theme') || 'dark';
+            var t = localStorage.getItem('theme');
+            if (!t) {
+                t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+                    ? 'light' : 'dark';
+            }
             document.documentElement.dataset.theme = t;
         })();
     </script>
@@ -469,10 +637,19 @@ function formatSizeUnits($bytes)
 <body>
     <div class="container">
         <h2 class="page-title">Leander's skibidi skripter</h2>
+        <p class="page-subtitle">PowerShell tools for IT, served fresh <span class="subtitle-heart">♡</span></p>
 
         <?php echo $breadcrumb_html; ?>
 
-        <input class="filter-box" type="search" id="filter" placeholder="Filter…" autocomplete="off" aria-label="Filter files">
+        <div class="toolbar">
+            <input class="filter-box" type="search" id="filter" placeholder="Filter…" autocomplete="off" aria-label="Filter files">
+            <div class="sort-controls" role="group" aria-label="Sort files">
+                <span class="sort-label">Sort:</span>
+                <button class="sort-btn" data-sort="name"  type="button" aria-pressed="false">Name</button>
+                <button class="sort-btn" data-sort="mtime" type="button" aria-pressed="false">Modified</button>
+                <button class="sort-btn" data-sort="size"  type="button" aria-pressed="false">Size</button>
+            </div>
+        </div>
 
         <ul id="file-list">
             <?php echo $items_html; ?>
@@ -483,6 +660,15 @@ function formatSizeUnits($bytes)
        target="_blank" rel="noopener" aria-label="Report bug or request feature">
         <span class="material-symbols-outlined" style="font-size:18px">bug_report</span>
         <span>Bug / Feature</span>
+    </a>
+
+    <!-- Updater shortcut. Visible to everyone, but the page itself requires
+         the admin password (set during setup.php) so a click from a
+         non-operator just lands on the login form. <SCRIPT_FOLDER> is
+         substituted to the actual folder name by setup.php. -->
+    <a class="admin-link" href="/<SCRIPT_FOLDER>/update.php"
+       title="Updater (admin)" aria-label="Open the updater">
+        <span class="material-symbols-outlined" style="font-size:18px">settings</span>
     </a>
 
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -538,8 +724,84 @@ function formatSizeUnits($bytes)
                 applyTheme(NEXT[document.documentElement.dataset.theme] || 'light', true);
             };
 
-            var saved = localStorage.getItem('theme') || 'dark';
+            // First visit: match OS preference (skip overpinku — opt-in via Konami).
+            var saved = localStorage.getItem('theme');
+            if (!saved) {
+                saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+                    ? 'light' : 'dark';
+            }
             applyTheme(saved, false);
+
+            // ── Sort controls ──────────────────────────────────
+            // Three buttons (Name / Modified / Size); click cycles
+            // ascending → descending → ascending on the active one.
+            // Folders always sort to the top within a type group.
+            // Preference is persisted in localStorage.
+            var sortBtns = document.querySelectorAll('.sort-btn');
+            var fileList = document.getElementById('file-list');
+
+            function getSortState() {
+                try {
+                    var raw = localStorage.getItem('sort');
+                    if (raw) {
+                        var parsed = JSON.parse(raw);
+                        if (parsed && parsed.key && parsed.dir) return parsed;
+                    }
+                } catch (e) {}
+                return { key: 'name', dir: 'asc' };
+            }
+            function setSortState(s) {
+                try { localStorage.setItem('sort', JSON.stringify(s)); } catch (e) {}
+            }
+            function applySort(state) {
+                // Update button pressed-state + arrow indicator
+                sortBtns.forEach(function (btn) {
+                    var isActive = btn.dataset.sort === state.key;
+                    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                    var existing = btn.querySelector('.arrow');
+                    if (existing) existing.remove();
+                    if (isActive) {
+                        var a = document.createElement('span');
+                        a.className = 'arrow';
+                        a.textContent = state.dir === 'asc' ? '↑' : '↓';
+                        btn.appendChild(a);
+                    }
+                });
+
+                // Sort <li> elements: folders first, then by chosen key
+                var items = Array.prototype.slice.call(fileList.querySelectorAll('li'));
+                items.sort(function (a, b) {
+                    if (a.dataset.type !== b.dataset.type) {
+                        return a.dataset.type === 'folder' ? -1 : 1;
+                    }
+                    var va = a.dataset[state.key], vb = b.dataset[state.key];
+                    if (state.key === 'mtime' || state.key === 'size') {
+                        va = parseInt(va, 10) || 0;
+                        vb = parseInt(vb, 10) || 0;
+                    }
+                    if (va < vb) return state.dir === 'asc' ? -1 : 1;
+                    if (va > vb) return state.dir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                var frag = document.createDocumentFragment();
+                items.forEach(function (li) { frag.appendChild(li); });
+                fileList.appendChild(frag);
+            }
+            sortBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var key = btn.dataset.sort;
+                    var s = getSortState();
+                    if (s.key === key) {
+                        s.dir = s.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        s.key = key;
+                        s.dir = 'asc';
+                    }
+                    setSortState(s);
+                    applySort(s);
+                });
+            });
+            applySort(getSortState());
 
             // ── Copy URL buttons ───────────────────────────────
             document.addEventListener('click', function(e) {
