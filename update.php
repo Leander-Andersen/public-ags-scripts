@@ -186,6 +186,9 @@ summary::-webkit-details-marker{display:none}
 .back-btn{position:fixed;top:16px;left:16px;z-index:999;background:rgba(128,128,128,.15);border:1px solid rgba(128,128,128,.25);color:var(--text);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:300;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:background-color .15s}.back-btn:hover{background:rgba(128,128,128,.25);color:var(--muted);text-decoration:none}
 [data-theme="overpinku"] .back-btn{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a}
 [data-theme="overpinku"] .back-btn:hover{background:rgba(255,20,147,.22);color:#5c1a3a}
+.logout-btn{position:fixed;top:56px;left:16px;z-index:999;background:rgba(128,128,128,.15);border:1px solid rgba(128,128,128,.25);color:var(--text);border-radius:8px;padding:6px 12px;font-size:.85rem;font-weight:300;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:background-color .15s}.logout-btn:hover{background:rgba(220,53,69,.18);color:#ff9090;text-decoration:none;border-color:rgba(220,53,69,.35)}
+[data-theme="overpinku"] .logout-btn{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a}
+[data-theme="overpinku"] .logout-btn:hover{background:rgba(255,20,147,.22);color:#5c1a3a}
 [data-theme="overpinku"] .gh-link{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a}
 [data-theme="overpinku"] .gh-link:hover{background:rgba(255,20,147,.22);color:#5c1a3a}
 [data-theme="overpinku"] .theme-toggle{background:rgba(255,20,147,.12);border-color:rgba(255,20,147,.3);color:#5c1a3a;animation:pinku-heartbeat 2.5s ease-in-out infinite}
@@ -221,9 +224,15 @@ HTML;
 }
 
 function page_close(): void {
-    echo <<<'HTML'
+    // Show a logout link only when the operator is actually authed —
+    // otherwise the button is meaningless and clutter on the login form.
+    $logout_btn = !empty($_SESSION['updater_authed'])
+        ? '<a href="?logout=1" class="logout-btn" title="Log out">Log out</a>'
+        : '';
+    echo <<<HTML
 </div>
 <a href="../" class="back-btn">&#8592; Browser</a>
+{$logout_btn}
 <a class="gh-link" href="https://github.com/Leander-Andersen/public-ags-scripts/issues/new/choose" target="_blank" rel="noopener">🐛 Bug / Feature</a>
 <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn">Light</button>
 <script>
@@ -307,6 +316,33 @@ if (empty($config['admin_pw_hash'])) {
     exit;
 }
 
+// Logout: explicit operator action OR side-effect of the auth checks below.
+// GET ?logout=1 wipes the session and bounces back to the login form.
+if (isset($_GET['logout'])) {
+    $_SESSION = [];
+    session_destroy();
+    // Start a fresh session so the next request has a clean csrf token.
+    session_start();
+    $_SESSION['login_message'] = 'Logged out.';
+    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+    exit;
+}
+
+// Idle session timeout. If an authed session sits untouched for longer
+// than IDLE_TIMEOUT seconds, drop the auth flag and force a fresh login.
+// This is what stops an unattended browser tab from being a permanent
+// open door to the updater.
+const IDLE_TIMEOUT = 900; // 15 minutes
+if (!empty($_SESSION['updater_authed'])) {
+    $last = $_SESSION['last_activity'] ?? time();
+    if (time() - $last > IDLE_TIMEOUT) {
+        unset($_SESSION['updater_authed'], $_SESSION['last_activity']);
+        $_SESSION['login_message'] = 'Session expired after 15 minutes of inactivity. Log in again to continue.';
+    } else {
+        $_SESSION['last_activity'] = time();
+    }
+}
+
 // Already-authed sessions skip past this whole block.
 if (empty($_SESSION['updater_authed'])) {
     $login_error = null;
@@ -321,6 +357,8 @@ if (empty($_SESSION['updater_authed'])) {
             // session id can't be replayed against the now-authed session.
             session_regenerate_id(true);
             $_SESSION['updater_authed'] = true;
+            $_SESSION['last_activity']  = time();
+            unset($_SESSION['login_message']);
             // Post/Redirect/Get so a refresh doesn't re-submit the password.
             header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
             exit;
@@ -329,6 +367,13 @@ if (empty($_SESSION['updater_authed'])) {
     }
 
     page_open('Updater — Log in');
+    // Surface any one-shot message (expired session, just-logged-out, etc.)
+    // then drop it so it doesn't stick around past the next page render.
+    if (!empty($_SESSION['login_message'])) {
+        $cls = (strpos(strtolower($_SESSION['login_message']), 'expired') !== false) ? 'alert-warning' : 'alert-info';
+        echo '<div class="alert ' . $cls . '">' . htmlspecialchars($_SESSION['login_message']) . '</div>';
+        unset($_SESSION['login_message']);
+    }
     if ($login_error) {
         echo '<div class="alert alert-danger">' . htmlspecialchars($login_error) . '</div>';
     }
@@ -513,7 +558,15 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     // 5. Show new commit
     [$commit, $_e, $_c] = git('log', '-1', '--format=%h %s (%ar)');
     echo '<div class="alert alert-success"><strong>Update complete.</strong> Now at: <code>' . htmlspecialchars($commit) . '</code></div>';
-    echo '<a href="update.php" class="btn btn-primary">Back to updater</a>';
+
+    // Force re-authentication after every successful update. Stops an
+    // unattended browser tab on the success page from being walked over
+    // to trigger another update. Operator gets a clear notice + a one-
+    // click way back to the login form.
+    unset($_SESSION['updater_authed'], $_SESSION['last_activity']);
+    $_SESSION['login_message'] = 'Update applied. Log in again to continue using the updater.';
+    echo '<div class="alert alert-info">For safety, you\'ve been logged out automatically. Log in again to use the updater.</div>';
+    echo '<a href="update.php" class="btn btn-primary">Log in</a>';
 
     page_close();
     exit;

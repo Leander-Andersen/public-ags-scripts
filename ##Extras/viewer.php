@@ -436,6 +436,58 @@ $title = htmlspecialchars(basename($requested));
             font-size: 0.95em;
         }
 
+        /* ── OverPinku: override highlight.js tokens ────────
+           atom-one-light's default token colours (faint yellows /
+           pale greys) wash out completely on the OverPinku pink
+           card background. Override the common token classes with
+           a coordinated dark-on-pink palette so paths, strings,
+           keywords, and comments stay readable. */
+        [data-theme="overpinku"] .hljs,
+        [data-theme="overpinku"] pre code {
+            background: var(--code-bg) !important;
+            color: #5c1a3a !important;
+        }
+        [data-theme="overpinku"] .hljs-keyword,
+        [data-theme="overpinku"] .hljs-built_in,
+        [data-theme="overpinku"] .hljs-selector-tag,
+        [data-theme="overpinku"] .hljs-section,
+        [data-theme="overpinku"] .hljs-link {
+            color: #c2185b !important;
+            font-weight: 500;
+        }
+        [data-theme="overpinku"] .hljs-string,
+        [data-theme="overpinku"] .hljs-attr,
+        [data-theme="overpinku"] .hljs-template-tag,
+        [data-theme="overpinku"] .hljs-template-variable,
+        [data-theme="overpinku"] .hljs-type,
+        [data-theme="overpinku"] .hljs-symbol,
+        [data-theme="overpinku"] .hljs-bullet,
+        [data-theme="overpinku"] .hljs-addition,
+        [data-theme="overpinku"] .hljs-variable {
+            color: #7b1e3a !important;
+        }
+        [data-theme="overpinku"] .hljs-title,
+        [data-theme="overpinku"] .hljs-title.class_,
+        [data-theme="overpinku"] .hljs-title.function_,
+        [data-theme="overpinku"] .hljs-function .hljs-title,
+        [data-theme="overpinku"] .hljs-name {
+            color: #e91e8c !important;
+        }
+        [data-theme="overpinku"] .hljs-number,
+        [data-theme="overpinku"] .hljs-literal,
+        [data-theme="overpinku"] .hljs-regexp,
+        [data-theme="overpinku"] .hljs-meta {
+            color: #9c27b0 !important;
+        }
+        [data-theme="overpinku"] .hljs-comment,
+        [data-theme="overpinku"] .hljs-quote,
+        [data-theme="overpinku"] .hljs-deletion {
+            color: #a14a6a !important;
+            font-style: italic;
+        }
+        [data-theme="overpinku"] .hljs-emphasis  { font-style: italic; }
+        [data-theme="overpinku"] .hljs-strong    { font-weight: 700; }
+
         /* ── Tables ───────────────────────────────────────── */
         .markdown-body table {
             border-collapse: collapse;

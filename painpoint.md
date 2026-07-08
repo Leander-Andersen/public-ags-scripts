@@ -323,4 +323,4 @@ These came up during the review and looked suspicious at first but didn't turn i
 
 That's the lot. **C1, H1, H2, H3, H4, H5, H6 (mitigated), M1, M2, M3, M5, M6, L2, L3, L5 are landed.** H0 is accepted-risk, M4/L1/L4/L6 are won't-fix per scope decisions.
 
-Reports go to leander@isame12.xyz per [SECURITY.md](SECURITY.md). If any of the above is already known and tracked, point me at the issue and I'll cross-reference.
+Reports go to leander@isame12.no per [SECURITY.md](/viewer.php?f=Scripts%2FSECURITY.md). If any of the above is already known and tracked, point me at the issue and I'll cross-reference.
