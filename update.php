@@ -28,6 +28,38 @@ $csrf = $_SESSION['csrf_token'];
 const PLACEHOLDER_DOMAIN = '<SCRIPT_DOMAIN>';
 const PLACEHOLDER_FOLDER = '<SCRIPT_FOLDER>';
 
+// ── Version helpers ───────────────────────────────────────────────────────────
+// The library version lives in the VERSION file at the repo root (MAJOR.MINOR.PATCH).
+function clean_version(string $v): string {
+    $v = trim($v);
+    return preg_match('/^\d+\.\d+\.\d+$/', $v) ? $v : '';
+}
+
+function local_version(): string {
+    global $BASE;
+    $file = $BASE . '/VERSION';
+    return is_file($file) ? clean_version((string) file_get_contents($file)) : '';
+}
+
+// Version on a fetched remote branch, read without checking it out.
+function remote_version(string $branch): string {
+    [$out, , $code] = git('show', "origin/{$branch}:VERSION");
+    return $code === 0 ? clean_version($out) : '';
+}
+
+function version_label(string $v): string {
+    return $v === '' ? 'unknown' : 'v' . $v;
+}
+
+// "v1.0.0 → v1.1.0" pill pair shown on the check and apply pages.
+function version_jump_html(string $from, string $to): string {
+    return '<div class="version-jump">'
+         . '<span class="ver">' . htmlspecialchars(version_label($from)) . '</span>'
+         . '<span class="arrow">→</span>'
+         . '<span class="ver ver-new">' . htmlspecialchars(version_label($to)) . '</span>'
+         . '</div>';
+}
+
 // ── Git helper ────────────────────────────────────────────────────────────────
 // Runs a git command in $BASE, returns [stdout, stderr, exit_code].
 function git(string ...$args): array {
@@ -199,6 +231,10 @@ html[data-theme="overpinku"],html[data-theme="overpinku"] body{background-image:
 [data-theme="overpinku"] ::-webkit-scrollbar{width:8px}[data-theme="overpinku"] ::-webkit-scrollbar-track{background:#ffe4ee}[data-theme="overpinku"] ::-webkit-scrollbar-thumb{background:#ff69b4;border-radius:10px}[data-theme="overpinku"] ::-webkit-scrollbar-thumb:hover{background:#e91e8c}
 @keyframes pinku-heartbeat{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 [data-theme="overpinku"],[data-theme="overpinku"] *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='24' viewBox='0 0 22 24'%3E%3Cpath fill='%23e91e8c' stroke='white' stroke-width='1.2' stroke-linejoin='round' d='M1 1 L1 16 L5 12.5 L8 18.5 L10 17.5 L7 11.5 L12 11.5 Z'/%3E%3Cpath fill='%23ff69b4' stroke='white' stroke-width='0.7' stroke-linejoin='round' d='M15 15 C15 15 12.5 12.5 12.5 11 C12.5 10.1 13.2 9.5 14 9.5 C14.5 9.5 14.8 9.8 15 10.3 C15.2 9.8 15.5 9.5 16 9.5 C16.8 9.5 17.5 10.1 17.5 11 C17.5 12.5 15 15 15 15 Z'/%3E%3C/svg%3E") 1 1,auto}
+.version-jump{display:flex;align-items:center;gap:14px;margin:0 0 16px;font-size:1.25rem}
+.version-jump .ver{padding:4px 14px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:400}
+.version-jump .ver-new{background:var(--btn-pink);border-color:transparent;color:#fff}
+.version-jump .arrow{color:var(--accent);font-size:1.5rem}
 CSS; }
 
 // ── Page template ─────────────────────────────────────────────────────────────
@@ -416,6 +452,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo '<tr><th style="width:160px">Script domain</th><td><code>' . htmlspecialchars($config['script_domain']) . '</code></td></tr>';
     echo '<tr><th>Script folder</th><td><code>' . htmlspecialchars($config['script_folder']) . '</code></td></tr>';
     echo '<tr><th>Configured on</th><td>' . htmlspecialchars($config['configured_at']) . '</td></tr>';
+    echo '<tr><th>Version</th><td><code>' . htmlspecialchars(version_label(local_version())) . '</code></td></tr>';
     echo '<tr><th>Active branch</th><td><code>' . htmlspecialchars($branch) . '</code></td></tr>';
     echo '<tr><th>Current commit</th><td><code>' . htmlspecialchars($commit ?: '—') . '</code></td></tr>';
     echo '</table></div></div>';
@@ -458,6 +495,8 @@ if ($action === 'check') {
     [$_out, $fetchErr, $fetchCode] = git('fetch', 'origin');
 
     [$log, $_e2, $_c2] = git('log', "HEAD..origin/{$branch}", '--oneline', '--no-decorate');
+    $from_version = local_version();
+    $to_version   = remote_version($branch);
 
     page_open('Updater — Check');
 
@@ -469,10 +508,14 @@ if ($action === 'check') {
     }
 
     if (empty($log)) {
-        echo '<div class="alert alert-success"><strong>Already up to date.</strong> No new commits on <code>' . htmlspecialchars($branch) . '</code>.</div>';
+        echo '<div class="alert alert-success"><strong>Already up to date.</strong> You\'re on <code>' . htmlspecialchars(version_label($from_version)) . '</code> with no new commits on <code>' . htmlspecialchars($branch) . '</code>.</div>';
         echo '<a href="update.php" class="btn btn-secondary">Back</a>';
     } else {
         $line_count = count(explode("\n", trim($log)));
+        echo version_jump_html($from_version, $to_version);
+        if ($from_version !== '' && $from_version === $to_version) {
+            echo '<p class="text-muted mb-3">Same version number — these are changes made since the last release.</p>';
+        }
         echo '<div class="alert alert-info"><strong>' . $line_count . ' new commit' . ($line_count === 1 ? '' : 's') . ' available</strong> on <code>' . htmlspecialchars($branch) . '</code>:</div>';
         echo '<pre class="commit-log">' . htmlspecialchars($log) . '</pre>';
         echo '<div class="alert alert-warning mt-3"><strong>How this works:</strong> The update will reset all repo files to the latest version (including reverting them to placeholders), re-apply your saved settings, and copy the updated file browser and viewer to the web root. Your <code>.setup-config.json</code> is never touched by git.</div>';
@@ -497,6 +540,8 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
     if (empty($branch)) $branch = 'main';
 
     page_open('Updater — Applying');
+
+    $from_version = local_version();
 
     // 1. Switch to the chosen branch and reset it to the remote state.
     //    Using checkout -B rather than reset --hard so that HEAD actually moves
@@ -557,6 +602,7 @@ if ($action === 'apply' && ($_POST['confirm'] ?? '') === '1') {
 
     // 5. Show new commit
     [$commit, $_e, $_c] = git('log', '-1', '--format=%h %s (%ar)');
+    echo version_jump_html($from_version, local_version());
     echo '<div class="alert alert-success"><strong>Update complete.</strong> Now at: <code>' . htmlspecialchars($commit) . '</code></div>';
 
     // Force re-authentication after every successful update. Stops an

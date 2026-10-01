@@ -9,6 +9,12 @@ $docroot = realpath($_SERVER['DOCUMENT_ROOT']);
 $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host    = $_SERVER['HTTP_HOST'];
 
+// Library version from the VERSION file at the repo root, shown next to the
+// subtitle and linked to its GitHub release. Hidden if missing or malformed.
+$version_file = $docroot . '/<SCRIPT_FOLDER>/VERSION';
+$version = is_file($version_file) ? trim((string) file_get_contents($version_file)) : '';
+if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) $version = '';
+
 // Build breadcrumb
 $breadcrumb_html = '';
 $curReal = realpath($directory);
@@ -216,6 +222,28 @@ function formatSizeUnits($bytes)
             font-size: 0.92rem;
             color: var(--muted);
             margin: 0 0 16px;
+        }
+
+        .version-tag {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 1px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.78rem;
+            color: var(--muted);
+            text-decoration: none;
+            vertical-align: middle;
+        }
+        .version-tag:hover {
+            color: var(--text);
+            text-decoration: none;
+        }
+        [data-theme="overpinku"] .version-tag {
+            background: rgba(255, 20, 147, 0.12);
+            border-color: rgba(255, 20, 147, 0.3);
+            color: #c2185b;
         }
 
         .subtitle-heart {
@@ -637,7 +665,9 @@ function formatSizeUnits($bytes)
 <body>
     <div class="container">
         <h2 class="page-title">Leander's skibidi skripter</h2>
-        <p class="page-subtitle">PowerShell tools for IT, served fresh <span class="subtitle-heart">♡</span></p>
+        <p class="page-subtitle">PowerShell tools for IT, served fresh <span class="subtitle-heart">♡</span><?php if ($version !== ''): ?>
+            <a class="version-tag" href="https://github.com/Leander-Andersen/public-ags-scripts/releases/tag/v<?php echo htmlspecialchars($version); ?>"
+               target="_blank" rel="noopener" title="Release notes">v<?php echo htmlspecialchars($version); ?></a><?php endif; ?></p>
 
         <?php echo $breadcrumb_html; ?>
 

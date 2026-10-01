@@ -172,6 +172,22 @@ The installer places a file browser at the web root (`index.php`) so visiting `h
 
 ---
 
+## Versions & releases
+
+The library version is in the [`VERSION`](VERSION) file at the repo root, using `MAJOR.MINOR.PATCH`:
+
+| Bump | When |
+|---|---|
+| **Patch** (`1.0.1`) | Fixes and small tweaks |
+| **Minor** (`1.1.0`) | New scripts or features |
+| **Major** (`2.0.0`) | Changes that break an existing install or how you deploy |
+
+The version shows as a badge next to the file browser's subtitle (linked to its release notes). `update.php` shows it as **current → new** before you apply an update, and again once the update is done.
+
+Every version is frozen as a git tag (`v1.0.0`, …) with a matching [GitHub Release](https://github.com/Leander-Andersen/public-ags-scripts/releases). To release a new version: bump `VERSION`, merge to `main`, then tag that commit and publish a release.
+
+---
+
 ## Branch structure
 
 | Branch | Purpose |

@@ -168,8 +168,8 @@ $title = htmlspecialchars(basename($requested));
             --text: #5c1a3a;
             --link: #e91e8c;
             --link-hover: #c2185b;
-            --code-bg: #ffd6e0;
-            --code-border: rgba(255, 20, 147, 0.15);
+            --code-bg: #ffdcee;
+            --code-border: rgba(255, 20, 147, 0.2);
             --accent: #e91e8c;
             --btn-bg: rgba(255, 20, 147, 0.1);
             --btn-fg: #5c1a3a;
@@ -523,6 +523,17 @@ $title = htmlspecialchars(basename($requested));
         }
 
         /* ── Copy button ──────────────────────────────────── */
+        /* The button lives on a wrapper around the <pre>, not inside it,
+           so it stays pinned to the corner when the code scrolls sideways. */
+        .code-wrap {
+            position: relative;
+            margin: 1em 0;
+        }
+
+        .code-wrap > pre {
+            margin: 0;
+        }
+
         .copy-btn {
             position: absolute;
             right: 8px;
@@ -922,12 +933,12 @@ $title = htmlspecialchars(basename($requested));
                         const text = codeEl.innerText || codeEl.textContent || '';
                         try {
                             await navigator.clipboard.writeText(text);
-                            pre.classList.add('copied');
+                            pre.parentNode.classList.add('copied');
                             btn.querySelector('.label').textContent = 'Copied';
                             btn.querySelector('.tick').style.display = 'inline';
                             showToast('Copied to clipboard ♡');
                             setTimeout(() => {
-                                pre.classList.remove('copied');
+                                pre.parentNode.classList.remove('copied');
                                 btn.querySelector('.label').textContent = 'Copy';
                                 btn.querySelector('.tick').style.display = 'none';
                             }, 1500);
@@ -940,11 +951,11 @@ $title = htmlspecialchars(basename($requested));
                                 sel.addRange(r);
                                 document.execCommand('copy');
                                 sel.removeAllRanges();
-                                pre.classList.add('copied');
+                                pre.parentNode.classList.add('copied');
                                 btn.querySelector('.label').textContent = 'Copied';
                                 showToast('Copied to clipboard ♡');
                                 setTimeout(() => {
-                                    pre.classList.remove('copied');
+                                    pre.parentNode.classList.remove('copied');
                                     btn.querySelector('.label').textContent = 'Copy';
                                 }, 1200);
                             } catch (e2) {
@@ -954,8 +965,11 @@ $title = htmlspecialchars(basename($requested));
                         }
                     });
 
-                    pre.style.position = 'relative';
-                    pre.appendChild(btn);
+                    const wrap = document.createElement('div');
+                    wrap.className = 'code-wrap';
+                    pre.parentNode.insertBefore(wrap, pre);
+                    wrap.appendChild(pre);
+                    wrap.appendChild(btn);
                 });
             }
 
